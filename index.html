@@ -9,14 +9,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <style>
-        /* Responsive root font size: 최소 12px, 최대 16px */
+        /* Responsive root font size */
         html { font-size: clamp(12px, 2.5vw, 16px); }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
         .loading { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 2000; }
         .loading.active { display: block; }
-        /* 작은 화면에서 카드 내부 여백과 텍스트 크기 최적화 */
         @media (max-width: 640px) {
             .p-8 { padding: 1rem; }
             .text-3xl { font-size: 1.4rem; }
@@ -133,7 +132,15 @@
                 </div>
 
                 <div class="bg-gray-50 rounded-xl p-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4" id="monthTitle">2025년 12월 출근 기록</h3>
+                    <div class="flex justify-between items-center mb-4">
+    <h3 class="text-lg font-semibold text-gray-800" id="monthTitle">2025년 12월 출근 기록</h3>
+    <div class="flex gap-2">
+        <button onclick="toggleView('calendar')" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">달력형</button>
+        <button onclick="toggleView('list')" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">리스트형</button>
+    </div>
+</div>
+<div id="calendarView" style="display:none;" class="mb-4 text-gray-500 text-sm">달력 UI는 추후 추가 예정</div>
+<div id="listView"> 
                     <div id="recordsList" class="space-y-2 max-h-80 overflow-y-auto"></div>
                 </div>
             </div>
@@ -270,7 +277,7 @@
             const record = records.find(r => r.id === id);
             if (!record) return;
             editingId = id;
-            document.getElementById('editDate').value = record.date;
+            document.getElementById('editDate').value = `${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
             document.getElementById('editStartTime').value = record.startTime;
             document.getElementById('editEndTime').value = record.endTime;
             document.getElementById('editModal').classList.add('active');
@@ -394,31 +401,40 @@
                 recordsList.innerHTML = '<div class="text-center py-8 text-gray-500">선택한 월에 출근 기록이 없습니다.</div>';
             } else {
                 const sortedMonthRecords = [...monthRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
-                recordsList.innerHTML = sortedMonthRecords.map((record, index) => {
+                // --- Bulk Delete Bar ---
+recordsList.innerHTML = `
+<div class="flex justify-between items-center mb-3">
+  <button onclick="bulkDelete()" class="px-3 py-1 bg-red-500 text-white rounded-lg text-sm">선택 삭제</button>
+</div>
+` + sortedMonthRecords.map((record, index) => {
                     const date = new Date(record.date);
                     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
                     const dayOfWeek = dayNames[date.getDay()];
                     const durationText = formatMinutesToTime(record.durationMinutes != null ? Number(record.durationMinutes) : (record.hours ? minutesFromHoursDecimal(record.hours) : 0));
                     return `
-                    <div class="bg-white rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition">
-                        <div class="flex items-center gap-4">
-                            <div class="bg-indigo-600 text-white rounded-lg w-12 h-12 flex items-center justify-center font-bold text-lg">${index + 1}</div>
-                            <div class="text-center">
-                                <div class="text-sm text-gray-500">날짜</div>
-                                <div class="font-semibold text-gray-800">${record.date}</div>
-                                <div class="text-xs text-gray-500 mt-1">(${dayOfWeek})</div>
+                    <div class="bg-white rounded-lg p-4 flex items-start gap-3 shadow-sm hover:shadow-md transition md:flex-row md:items-center md:justify-between">
+    <input type="checkbox" class="record-check mt-2 md:mt-0" data-id="${record.id}" />
+                        <div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-6">
+                            <div class="bg-indigo-600 text-white rounded-lg w-10 h-10 flex items-center justify-center font-bold text-md md:w-12 md:h-12 md:text-lg">${index + 1}</div>
+
+                            <div class="flex flex-row justify-between md:flex-col md:text-center md:items-center">
+                                <div>
+                                    <div class="text-xs text-gray-500">날짜</div>
+                                    <div class="font-semibold text-gray-800 text-sm">${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} <span class='ml-1 px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded-full'>${dayOfWeek}</span></div>
+                                </div>
+                                <div class="text-xs text-gray-500 md:mt-1">(${dayOfWeek})</div>
                             </div>
-                            <div class="h-14 w-px bg-gray-200"></div>
-                            <div class="flex items-center gap-2">
-                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <polyline points="12 6 12 12 16 14"></polyline>
-                                </svg>
-                                <span class="text-gray-700">${record.startTime || ''} ~ ${record.endTime || ''}</span>
+
+                            <div class="h-px w-full bg-gray-200 md:h-14 md:w-px"></div>
+
+                            <div class="flex flex-row items-center justify-between md:gap-2 md:justify-start">
+                                <span class="text-gray-700 text-sm">${record.startTime || ''} ~ ${record.endTime || ''}</span>
                             </div>
-                            <div class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">${durationText}</div>
+
+                            <div class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-medium w-fit md:text-sm md:px-3 md:py-1">${durationText}</div>
                         </div>
-                        <div class="flex gap-2">
+
+                        <div class="flex gap-2 self-end md:self-auto">
                             <button onclick="openEditModal('${record.id}')" class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition" title="수정">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -437,7 +453,61 @@
             }
         }
 
-        window.onload = async function() {
+        function toggleView(view){
+    document.getElementById('calendarView').style.display = view==='calendar'?'block':'none';
+    document.getElementById('listView').style.display = view==='list'?'block':'none';
+}
+
+function bulkDelete(){
+  const ids=[...document.querySelectorAll('.record-check:checked')].map(c=>c.dataset.id);
+  if(ids.length===0){alert('삭제할 기록을 선택하세요');return;}
+  if(!confirm(ids.length+'개 기록을 삭제하시겠습니까?')) return;
+  ids.forEach(async(id)=>{await db.collection('attendance').doc(id).delete();});
+  loadRecords().then(updateDashboard);
+}
+
+function renderCalendar(monthRecords){
+  const container=document.getElementById('calendarView');
+  container.innerHTML='';
+  const now=new Date(document.getElementById('monthSelect').value+'-01');
+  const year=now.getFullYear(),month=now.getMonth();
+  const first=new Date(year,month,1);
+  const last=new Date(year,month+1,0);
+  const startDay=first.getDay();
+  const grid=document.createElement('div');
+  grid.className='grid grid-cols-7 gap-1 text-center';
+  // weekdays
+  ['일','월','화','수','목','금','토'].forEach(d=>{grid.innerHTML+=`<div class='font-medium text-gray-700'>${d}</div>`});
+  // blanks
+  for(let i=0;i<startDay;i++){grid.innerHTML+=`<div></div>`}
+  for(let d=1;d<=last.getDate();d++){
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const rec = monthRecords.filter(r=>r.date===dateStr);
+    const totalMins = rec.reduce((s,r)=>s+(r.durationMinutes||0),0);
+    const hrs = Math.floor(totalMins/60);
+    const has = rec.length>0;
+    let label = `${d}`;
+    if(totalMins>0){ label += `<div class='text-[10px] mt-1 text-gray-600'>${hrs}h</div>`; }
+    const bg = has?"bg-indigo-100 text-indigo-700 font-semibold":"bg-white";
+    grid.innerHTML += `
+      <div onclick="highlightDate('${dateStr}')" class='p-2 rounded-lg cursor-pointer ${bg}'>${label}</div>
+    `;
+  }();d++){
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const has=monthRecords.find(r=>r.date===dateStr);
+    grid.innerHTML+=`<div onclick="highlightDate('${dateStr}')" class='p-2 rounded-lg cursor-pointer ${has?"bg-indigo-100 text-indigo-700 font-semibold":"bg-white"}'>${d}</div>`;
+  }
+  container.appendChild(grid);
+}
+function highlightDate(date){
+  const rows=document.querySelectorAll('#listView .record-row');
+  rows.forEach(r=>{
+    if(r.dataset.date===date){r.classList.add('bg-yellow-100');}
+    else{r.classList.remove('bg-yellow-100');}
+  });
+}
+
+window.onload = async function() {
             await loadRecords();
             generateMonthOptions();
             updateDashboard();
