@@ -9,11 +9,18 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <style>
+        /* Responsive root font size: 최소 12px, 최대 16px */
+        html { font-size: clamp(12px, 2.5vw, 16px); }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
         .loading { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 2000; }
         .loading.active { display: block; }
+        /* 작은 화면에서 카드 내부 여백과 텍스트 크기 최적화 */
+        @media (max-width: 640px) {
+            .p-8 { padding: 1rem; }
+            .text-3xl { font-size: 1.4rem; }
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -36,14 +43,20 @@
                     </svg>
                     <h1 class="text-3xl font-bold text-gray-800">돌봄선생님 근무표</h1>
                 </div>
-                <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    엑셀 다운로드
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        엑셀 다운로드
+                    </button>
+                    <label class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center gap-2 cursor-pointer">
+                        엑셀 업로드
+                        <input id="excelFileInput" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleExcelUpload(event)">
+                    </label>
+                </div>
             </div>
 
             <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6 mb-8">
@@ -177,12 +190,36 @@
         function showLoading() { document.getElementById('loading').classList.add('active'); }
         function hideLoading() { document.getElementById('loading').classList.remove('active'); }
 
+        function formatMinutesToTime(mins) {
+            if (mins == null || isNaN(mins)) return '0시간 0분';
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            const hText = h > 0 ? `${h}시간` : '0시간';
+            const mText = `${m}분`;
+            return `${hText} ${mText}`;
+        }
+
+        function minutesFromHoursDecimal(hoursDec) {
+            const num = parseFloat(hoursDec);
+            if (isNaN(num)) return 0;
+            return Math.round(num * 60);
+        }
+
         async function loadRecords() {
             showLoading();
             try {
                 const snapshot = await db.collection('attendance').orderBy('date', 'desc').get();
                 records = [];
-                snapshot.forEach(doc => { records.push({ id: doc.id, ...doc.data() }); });
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    // Normalize duration to minutes (durationMinutes)
+                    let durationMinutes = null;
+                    if (data.durationMinutes != null) durationMinutes = data.durationMinutes;
+                    else if (data.hours != null) durationMinutes = minutesFromHoursDecimal(data.hours);
+                    else if (data['근무시간(분)'] != null) durationMinutes = Number(data['근무시간(분)']);
+
+                    records.push({ id: doc.id, ...data, durationMinutes });
+                });
             } catch (error) {
                 console.error("데이터 로드 오류:", error);
                 alert("데이터를 불러오는데 실패했습니다.");
@@ -202,12 +239,20 @@
             const end = new Date(`${date}T${endTime}`);
             if (end <= start) { alert('퇴근 시간은 출근 시간보다 늦어야 합니다.'); return; }
 
-            const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
-            const newRecord = { date, startTime, endTime, hours, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+            const durationMinutes = Math.round((end - start) / (1000 * 60));
+            const newRecord = { date, startTime, endTime, durationMinutes, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
 
             showLoading();
             try {
-                await db.collection('attendance').add(newRecord);
+                // check existing by date -> overwrite first found
+                const snapshot = await db.collection('attendance').where('date','==',date).get();
+                if (!snapshot.empty) {
+                    // update first doc for that date
+                    const docId = snapshot.docs[0].id;
+                    await db.collection('attendance').doc(docId).update(newRecord);
+                } else {
+                    await db.collection('attendance').add(newRecord);
+                }
                 await loadRecords();
                 document.getElementById('dateInput').value = '';
                 document.getElementById('startTimeInput').value = '';
@@ -248,11 +293,11 @@
             const end = new Date(`${date}T${endTime}`);
             if (end <= start) { alert('퇴근 시간은 출근 시간보다 늦어야 합니다.'); return; }
 
-            const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
+            const durationMinutes = Math.round((end - start) / (1000 * 60));
 
             showLoading();
             try {
-                await db.collection('attendance').doc(editingId).update({ date, startTime, endTime, hours });
+                await db.collection('attendance').doc(editingId).update({ date, startTime, endTime, durationMinutes });
                 await loadRecords();
                 updateDashboard();
                 closeEditModal();
@@ -284,12 +329,13 @@
             const sortedRecords = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
             const excelData = sortedRecords.map(record => ({
                 '날짜': record.date,
-                '출근시간': record.startTime,
-                '퇴근시간': record.endTime,
-                '근무시간': parseFloat(record.hours)
+                '출근시간': record.startTime || '',
+                '퇴근시간': record.endTime || '',
+                '근무시간(분)': record.durationMinutes != null ? record.durationMinutes : (record.hours ? minutesFromHoursDecimal(record.hours) : ''),
+                '근무시간': record.durationMinutes != null ? formatMinutesToTime(record.durationMinutes) : (record.hours ? formatMinutesToTime(minutesFromHoursDecimal(record.hours)) : '')
             }));
             const worksheet = XLSX.utils.json_to_sheet(excelData);
-            worksheet['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+            worksheet['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 16 }];
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, '출근기록');
             const today = new Date().toISOString().split('T')[0];
@@ -329,18 +375,20 @@
                 return recordDate >= startDate && recordDate <= endDate;
             });
             const monthDays = monthRecords.length;
-            const monthTotalHours = monthRecords.reduce((sum, r) => sum + parseFloat(r.hours), 0);
-            const monthAvgHours = monthDays > 0 ? (monthTotalHours / monthDays).toFixed(2) : '0.00';
+            const monthTotalMinutes = monthRecords.reduce((sum, r) => sum + (r.durationMinutes != null ? Number(r.durationMinutes) : (r.hours ? minutesFromHoursDecimal(r.hours) : 0)), 0);
+            const monthAvgMinutes = monthDays > 0 ? Math.round(monthTotalMinutes / monthDays) : 0;
             const expectedSalary = monthDays * 50000;
             const cumulativeDays = cumulativeRecords.length;
-            const cumulativeTotalHours = cumulativeRecords.reduce((sum, r) => sum + parseFloat(r.hours), 0);
-            const cumulativeAvgHours = cumulativeDays > 0 ? (cumulativeTotalHours / cumulativeDays).toFixed(2) : '0.00';
+            const cumulativeTotalMinutes = cumulativeRecords.reduce((sum, r) => sum + (r.durationMinutes != null ? Number(r.durationMinutes) : (r.hours ? minutesFromHoursDecimal(r.hours) : 0)), 0);
+            const cumulativeAvgMinutes = cumulativeDays > 0 ? Math.round(cumulativeTotalMinutes / cumulativeDays) : 0;
+
             document.getElementById('monthDays').textContent = `${monthDays}일`;
             document.getElementById('expectedSalary').textContent = `${expectedSalary.toLocaleString('ko-KR')}원`;
-            document.getElementById('monthTotalHours').textContent = `${monthTotalHours.toFixed(2)}시간`;
-            document.getElementById('monthAvgHours').textContent = `${monthAvgHours}시간`;
-            document.getElementById('cumulativeAvgHours').textContent = `${cumulativeAvgHours}시간`;
+            document.getElementById('monthTotalHours').textContent = formatMinutesToTime(monthTotalMinutes);
+            document.getElementById('monthAvgHours').textContent = formatMinutesToTime(monthAvgMinutes);
+            document.getElementById('cumulativeAvgHours').textContent = formatMinutesToTime(cumulativeAvgMinutes);
             document.getElementById('monthTitle').textContent = `${year}년 ${month}월 출근 기록`;
+
             const recordsList = document.getElementById('recordsList');
             if (monthRecords.length === 0) {
                 recordsList.innerHTML = '<div class="text-center py-8 text-gray-500">선택한 월에 출근 기록이 없습니다.</div>';
@@ -350,6 +398,7 @@
                     const date = new Date(record.date);
                     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
                     const dayOfWeek = dayNames[date.getDay()];
+                    const durationText = formatMinutesToTime(record.durationMinutes != null ? Number(record.durationMinutes) : (record.hours ? minutesFromHoursDecimal(record.hours) : 0));
                     return `
                     <div class="bg-white rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition">
                         <div class="flex items-center gap-4">
@@ -365,9 +414,9 @@
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <polyline points="12 6 12 12 16 14"></polyline>
                                 </svg>
-                                <span class="text-gray-700">${record.startTime} ~ ${record.endTime}</span>
+                                <span class="text-gray-700">${record.startTime || ''} ~ ${record.endTime || ''}</span>
                             </div>
-                            <div class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">${record.hours}시간</div>
+                            <div class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">${durationText}</div>
                         </div>
                         <div class="flex gap-2">
                             <button onclick="openEditModal('${record.id}')" class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition" title="수정">
@@ -393,6 +442,65 @@
             generateMonthOptions();
             updateDashboard();
         };
+
+        // ------------------ Excel Upload Handling ------------------
+        async function handleExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!confirm('업로드 시 동일한 날짜는 덮어쓰고, 새로운 날짜는 추가됩니다. 계속 진행하시겠습니까?')) return;
+            showLoading();
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                // Expecting columns: 날짜, 출근시간, 퇴근시간, 근무시간(분) (근무시간 컬럼 optional)
+                for (const row of json) {
+                    const date = row['날짜'] || row['date'] || row['Date'];
+                    const startTime = row['출근시간'] || row['startTime'] || row['Start'] || '';
+                    const endTime = row['퇴근시간'] || row['endTime'] || row['End'] || '';
+                    let durationMinutes = null;
+                    if (row['근무시간(분)'] != null && row['근무시간(분)'] !== '') durationMinutes = Number(row['근무시간(분)']);
+                    else if (row['근무시간'] && typeof row['근무시간'] === 'string') {
+                        // try to parse "(\d+)시간 (\d+)분"
+                        const m = row['근무시간'].match(/(\d+)\s*시간.*?(\d+)\s*분/);
+                        if (m) durationMinutes = Number(m[1]) * 60 + Number(m[2]);
+                    }
+                    // if duration not provided, compute from start/end
+                    if ((durationMinutes == null || isNaN(durationMinutes)) && date && startTime && endTime) {
+                        const s = new Date(`${date}T${startTime}`);
+                        const e = new Date(`${date}T${endTime}`);
+                        if (!isNaN(s) && !isNaN(e) && e > s) durationMinutes = Math.round((e - s) / (1000 * 60));
+                    }
+                    // skip invalid rows
+                    if (!date) continue;
+
+                    const recordData = { date, startTime, endTime, durationMinutes, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+
+                    // Find existing by date -> overwrite first found, per 요청
+                    const snapshot = await db.collection('attendance').where('date','==',date).get();
+                    if (!snapshot.empty) {
+                        const docId = snapshot.docs[0].id;
+                        await db.collection('attendance').doc(docId).update(recordData);
+                    } else {
+                        await db.collection('attendance').add(recordData);
+                    }
+                }
+
+                await loadRecords();
+                updateDashboard();
+                alert('엑셀 업로드가 완료되었습니다.');
+            } catch (err) {
+                console.error(err);
+                alert('엑셀 업로드 중 오류가 발생했습니다.');
+            } finally {
+                hideLoading();
+                // reset file input
+                event.target.value = '';
+            }
+        }
+
     </script>
 </body>
 </html>
