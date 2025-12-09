@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>돌봄선생님 근무표</title>
+    <title>하원돌봄 근무표</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <style>
-        /* Responsive root font size */
-        html { font-size: clamp(12px, 2.5vw, 16px); }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
+        }
+        @media (min-width: 640px) {
+            body { font-size: 16px; }
+        }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
         .loading { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 2000; }
         .loading.active { display: block; }
-        @media (max-width: 640px) {
-            .p-8 { padding: 1rem; }
-            .text-3xl { font-size: 1.4rem; }
-        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -42,20 +42,14 @@
                     </svg>
                     <h1 class="text-3xl font-bold text-gray-800">돌봄선생님 근무표</h1>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        엑셀 다운로드
-                    </button>
-                    <label class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center gap-2 cursor-pointer">
-                        엑셀 업로드
-                        <input id="excelFileInput" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleExcelUpload(event)">
-                    </label>
-                </div>
+                <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    엑셀 다운로드
+                </button>
             </div>
 
             <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6 mb-8">
@@ -66,22 +60,22 @@
                     </svg>
                     출퇴근 기록 입력
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">날짜</label>
-                        <input type="date" id="dateInput" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">날짜</label>
+                        <input type="date" id="dateInput" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">출근 시간</label>
-                        <input type="time" id="startTimeInput" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">출근 시간</label>
+                        <input type="time" id="startTimeInput" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">퇴근 시간</label>
-                        <input type="time" id="endTimeInput" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">퇴근 시간</label>
+                        <input type="time" id="endTimeInput" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     </div>
                     <div class="flex items-end">
-                        <button onclick="addRecord()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center justify-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button onclick="addRecord()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 sm:px-6 rounded-lg transition duration-200 flex items-center justify-center gap-2 text-sm sm:text-base">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
@@ -91,56 +85,48 @@
                 </div>
             </div>
 
-            <div class="mb-8">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="mb-6 sm:mb-8">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+                    <h2 class="text-base sm:text-xl font-semibold text-gray-800 flex items-center gap-2">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <line x1="18" y1="20" x2="18" y2="10"></line>
                             <line x1="12" y1="20" x2="12" y2="4"></line>
                             <line x1="6" y1="20" x2="6" y2="14"></line>
                         </svg>
                         근무 현황 대시보드
                     </h2>
-                    <div>
-                        <select id="monthSelect" onchange="updateDashboard()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-medium"></select>
+                    <div class="w-full sm:w-auto">
+                        <select id="monthSelect" onchange="updateDashboard()" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-medium"></select>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
-                        <div class="text-sm font-medium opacity-90 mb-2">출근 일수</div>
-                        <div class="text-3xl font-bold" id="monthDays">0일</div>
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
+                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">출근 일수</div>
+                        <div class="text-xl sm:text-3xl font-bold" id="monthDays">0일</div>
                     </div>
-                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-6 text-white">
-                        <div class="text-sm font-medium opacity-90 mb-2">지급 예정 돌봄 급여</div>
+                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
+                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1">지급 예정 급여</div>
                         <div class="text-xs opacity-80 mb-1">(5만원/일)</div>
-                        <div class="text-3xl font-bold" id="expectedSalary">0원</div>
+                        <div class="text-lg sm:text-3xl font-bold" id="expectedSalary">0원</div>
                     </div>
-                    <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 text-white">
-                        <div class="text-sm font-medium opacity-90 mb-2">총 근무시간</div>
-                        <div class="text-3xl font-bold" id="monthTotalHours">0시간</div>
+                    <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white col-span-2 lg:col-span-1">
+                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">총 근무시간</div>
+                        <div class="text-xl sm:text-3xl font-bold" id="monthTotalHours">0시간</div>
                     </div>
-                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
-                        <div class="text-sm font-medium opacity-90 mb-2">월 일평균 근무시간</div>
-                        <div class="text-3xl font-bold" id="monthAvgHours">0시간</div>
+                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
+                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">월 일평균</div>
+                        <div class="text-xl sm:text-3xl font-bold" id="monthAvgHours">0시간</div>
                     </div>
-                    <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl p-6 text-white">
-                        <div class="text-sm font-medium opacity-90 mb-2">누적 일평균 근무시간</div>
-                        <div class="text-3xl font-bold" id="cumulativeAvgHours">0시간</div>
-                        <div class="text-xs opacity-80 mt-1">2025.12 ~ 현재</div>
+                    <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
+                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">누적 일평균</div>
+                        <div class="text-xl sm:text-3xl font-bold" id="cumulativeAvgHours">0시간</div>
+                        <div class="text-xs opacity-80 mt-1">2025.12~</div>
                     </div>
                 </div>
 
-                <div class="bg-gray-50 rounded-xl p-6">
-                    <div class="flex justify-between items-center mb-4">
-    <h3 class="text-lg font-semibold text-gray-800" id="monthTitle">2025년 12월 출근 기록</h3>
-    <div class="flex gap-2">
-        <button onclick="toggleView('calendar')" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">달력형</button>
-        <button onclick="toggleView('list')" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">리스트형</button>
-    </div>
-</div>
-<div id="calendarView" style="display:none;" class="mb-4 text-gray-500 text-sm">달력 UI는 추후 추가 예정</div>
-<div id="listView"> 
+                <div class="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4" id="monthTitle">2025년 12월 출근 기록</h3>
                     <div id="recordsList" class="space-y-2 max-h-80 overflow-y-auto"></div>
                 </div>
             </div>
@@ -197,36 +183,12 @@
         function showLoading() { document.getElementById('loading').classList.add('active'); }
         function hideLoading() { document.getElementById('loading').classList.remove('active'); }
 
-        function formatMinutesToTime(mins) {
-            if (mins == null || isNaN(mins)) return '0시간 0분';
-            const h = Math.floor(mins / 60);
-            const m = mins % 60;
-            const hText = h > 0 ? `${h}시간` : '0시간';
-            const mText = `${m}분`;
-            return `${hText} ${mText}`;
-        }
-
-        function minutesFromHoursDecimal(hoursDec) {
-            const num = parseFloat(hoursDec);
-            if (isNaN(num)) return 0;
-            return Math.round(num * 60);
-        }
-
         async function loadRecords() {
             showLoading();
             try {
                 const snapshot = await db.collection('attendance').orderBy('date', 'desc').get();
                 records = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    // Normalize duration to minutes (durationMinutes)
-                    let durationMinutes = null;
-                    if (data.durationMinutes != null) durationMinutes = data.durationMinutes;
-                    else if (data.hours != null) durationMinutes = minutesFromHoursDecimal(data.hours);
-                    else if (data['근무시간(분)'] != null) durationMinutes = Number(data['근무시간(분)']);
-
-                    records.push({ id: doc.id, ...data, durationMinutes });
-                });
+                snapshot.forEach(doc => { records.push({ id: doc.id, ...doc.data() }); });
             } catch (error) {
                 console.error("데이터 로드 오류:", error);
                 alert("데이터를 불러오는데 실패했습니다.");
@@ -246,20 +208,12 @@
             const end = new Date(`${date}T${endTime}`);
             if (end <= start) { alert('퇴근 시간은 출근 시간보다 늦어야 합니다.'); return; }
 
-            const durationMinutes = Math.round((end - start) / (1000 * 60));
-            const newRecord = { date, startTime, endTime, durationMinutes, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+            const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
+            const newRecord = { date, startTime, endTime, hours, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
 
             showLoading();
             try {
-                // check existing by date -> overwrite first found
-                const snapshot = await db.collection('attendance').where('date','==',date).get();
-                if (!snapshot.empty) {
-                    // update first doc for that date
-                    const docId = snapshot.docs[0].id;
-                    await db.collection('attendance').doc(docId).update(newRecord);
-                } else {
-                    await db.collection('attendance').add(newRecord);
-                }
+                await db.collection('attendance').add(newRecord);
                 await loadRecords();
                 document.getElementById('dateInput').value = '';
                 document.getElementById('startTimeInput').value = '';
@@ -277,7 +231,7 @@
             const record = records.find(r => r.id === id);
             if (!record) return;
             editingId = id;
-            document.getElementById('editDate').value = `${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+            document.getElementById('editDate').value = record.date;
             document.getElementById('editStartTime').value = record.startTime;
             document.getElementById('editEndTime').value = record.endTime;
             document.getElementById('editModal').classList.add('active');
@@ -300,11 +254,11 @@
             const end = new Date(`${date}T${endTime}`);
             if (end <= start) { alert('퇴근 시간은 출근 시간보다 늦어야 합니다.'); return; }
 
-            const durationMinutes = Math.round((end - start) / (1000 * 60));
+            const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
 
             showLoading();
             try {
-                await db.collection('attendance').doc(editingId).update({ date, startTime, endTime, durationMinutes });
+                await db.collection('attendance').doc(editingId).update({ date, startTime, endTime, hours });
                 await loadRecords();
                 updateDashboard();
                 closeEditModal();
@@ -336,13 +290,12 @@
             const sortedRecords = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
             const excelData = sortedRecords.map(record => ({
                 '날짜': record.date,
-                '출근시간': record.startTime || '',
-                '퇴근시간': record.endTime || '',
-                '근무시간(분)': record.durationMinutes != null ? record.durationMinutes : (record.hours ? minutesFromHoursDecimal(record.hours) : ''),
-                '근무시간': record.durationMinutes != null ? formatMinutesToTime(record.durationMinutes) : (record.hours ? formatMinutesToTime(minutesFromHoursDecimal(record.hours)) : '')
+                '출근시간': record.startTime,
+                '퇴근시간': record.endTime,
+                '근무시간': parseFloat(record.hours)
             }));
             const worksheet = XLSX.utils.json_to_sheet(excelData);
-            worksheet['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 16 }];
+            worksheet['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, '출근기록');
             const today = new Date().toISOString().split('T')[0];
@@ -382,59 +335,47 @@
                 return recordDate >= startDate && recordDate <= endDate;
             });
             const monthDays = monthRecords.length;
-            const monthTotalMinutes = monthRecords.reduce((sum, r) => sum + (r.durationMinutes != null ? Number(r.durationMinutes) : (r.hours ? minutesFromHoursDecimal(r.hours) : 0)), 0);
-            const monthAvgMinutes = monthDays > 0 ? Math.round(monthTotalMinutes / monthDays) : 0;
+            const monthTotalHours = monthRecords.reduce((sum, r) => sum + parseFloat(r.hours), 0);
+            const monthAvgHours = monthDays > 0 ? (monthTotalHours / monthDays).toFixed(2) : '0.00';
             const expectedSalary = monthDays * 50000;
             const cumulativeDays = cumulativeRecords.length;
-            const cumulativeTotalMinutes = cumulativeRecords.reduce((sum, r) => sum + (r.durationMinutes != null ? Number(r.durationMinutes) : (r.hours ? minutesFromHoursDecimal(r.hours) : 0)), 0);
-            const cumulativeAvgMinutes = cumulativeDays > 0 ? Math.round(cumulativeTotalMinutes / cumulativeDays) : 0;
-
+            const cumulativeTotalHours = cumulativeRecords.reduce((sum, r) => sum + parseFloat(r.hours), 0);
+            const cumulativeAvgHours = cumulativeDays > 0 ? (cumulativeTotalHours / cumulativeDays).toFixed(2) : '0.00';
             document.getElementById('monthDays').textContent = `${monthDays}일`;
             document.getElementById('expectedSalary').textContent = `${expectedSalary.toLocaleString('ko-KR')}원`;
-            document.getElementById('monthTotalHours').textContent = formatMinutesToTime(monthTotalMinutes);
-            document.getElementById('monthAvgHours').textContent = formatMinutesToTime(monthAvgMinutes);
-            document.getElementById('cumulativeAvgHours').textContent = formatMinutesToTime(cumulativeAvgMinutes);
+            document.getElementById('monthTotalHours').textContent = `${monthTotalHours.toFixed(2)}시간`;
+            document.getElementById('monthAvgHours').textContent = `${monthAvgHours}시간`;
+            document.getElementById('cumulativeAvgHours').textContent = `${cumulativeAvgHours}시간`;
             document.getElementById('monthTitle').textContent = `${year}년 ${month}월 출근 기록`;
-
             const recordsList = document.getElementById('recordsList');
             if (monthRecords.length === 0) {
                 recordsList.innerHTML = '<div class="text-center py-8 text-gray-500">선택한 월에 출근 기록이 없습니다.</div>';
             } else {
                 const sortedMonthRecords = [...monthRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
-                // --- Bulk Delete Bar ---
-recordsList.innerHTML = `
-<div class="flex justify-between items-center mb-3">
-  <button onclick="bulkDelete()" class="px-3 py-1 bg-red-500 text-white rounded-lg text-sm">선택 삭제</button>
-</div>
-` + sortedMonthRecords.map((record, index) => {
+                recordsList.innerHTML = sortedMonthRecords.map((record, index) => {
                     const date = new Date(record.date);
                     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
                     const dayOfWeek = dayNames[date.getDay()];
-                    const durationText = formatMinutesToTime(record.durationMinutes != null ? Number(record.durationMinutes) : (record.hours ? minutesFromHoursDecimal(record.hours) : 0));
                     return `
-                    <div class="bg-white rounded-lg p-4 flex items-start gap-3 shadow-sm hover:shadow-md transition md:flex-row md:items-center md:justify-between">
-    <input type="checkbox" class="record-check mt-2 md:mt-0" data-id="${record.id}" />
-                        <div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-6">
-                            <div class="bg-indigo-600 text-white rounded-lg w-10 h-10 flex items-center justify-center font-bold text-md md:w-12 md:h-12 md:text-lg">${index + 1}</div>
-
-                            <div class="flex flex-row justify-between md:flex-col md:text-center md:items-center">
-                                <div>
-                                    <div class="text-xs text-gray-500">날짜</div>
-                                    <div class="font-semibold text-gray-800 text-sm">${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} <span class='ml-1 px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded-full'>${dayOfWeek}</span></div>
-                                </div>
-                                <div class="text-xs text-gray-500 md:mt-1">(${dayOfWeek})</div>
+                    <div class="bg-white rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-600 text-white rounded-lg w-12 h-12 flex items-center justify-center font-bold text-lg">${index + 1}</div>
+                            <div class="text-center">
+                                <div class="text-sm text-gray-500">날짜</div>
+                                <div class="font-semibold text-gray-800">${record.date}</div>
+                                <div class="text-xs text-gray-500 mt-1">(${dayOfWeek})</div>
                             </div>
-
-                            <div class="h-px w-full bg-gray-200 md:h-14 md:w-px"></div>
-
-                            <div class="flex flex-row items-center justify-between md:gap-2 md:justify-start">
-                                <span class="text-gray-700 text-sm">${record.startTime || ''} ~ ${record.endTime || ''}</span>
+                            <div class="h-14 w-px bg-gray-200"></div>
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                <span class="text-gray-700">${record.startTime} ~ ${record.endTime}</span>
                             </div>
-
-                            <div class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-medium w-fit md:text-sm md:px-3 md:py-1">${durationText}</div>
+                            <div class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">${record.hours}시간</div>
                         </div>
-
-                        <div class="flex gap-2 self-end md:self-auto">
+                        <div class="flex gap-2">
                             <button onclick="openEditModal('${record.id}')" class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition" title="수정">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -453,124 +394,11 @@ recordsList.innerHTML = `
             }
         }
 
-        function toggleView(view){
-    document.getElementById('calendarView').style.display = view==='calendar'?'block':'none';
-    document.getElementById('listView').style.display = view==='list'?'block':'none';
-}
-
-function bulkDelete(){
-  const ids=[...document.querySelectorAll('.record-check:checked')].map(c=>c.dataset.id);
-  if(ids.length===0){alert('삭제할 기록을 선택하세요');return;}
-  if(!confirm(ids.length+'개 기록을 삭제하시겠습니까?')) return;
-  ids.forEach(async(id)=>{await db.collection('attendance').doc(id).delete();});
-  loadRecords().then(updateDashboard);
-}
-
-function renderCalendar(monthRecords){
-  const container=document.getElementById('calendarView');
-  container.innerHTML='';
-  const now=new Date(document.getElementById('monthSelect').value+'-01');
-  const year=now.getFullYear(),month=now.getMonth();
-  const first=new Date(year,month,1);
-  const last=new Date(year,month+1,0);
-  const startDay=first.getDay();
-  const grid=document.createElement('div');
-  grid.className='grid grid-cols-7 gap-1 text-center';
-  // weekdays
-  ['일','월','화','수','목','금','토'].forEach(d=>{grid.innerHTML+=`<div class='font-medium text-gray-700'>${d}</div>`});
-  // blanks
-  for(let i=0;i<startDay;i++){grid.innerHTML+=`<div></div>`}
-  for(let d=1;d<=last.getDate();d++){
-    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const rec = monthRecords.filter(r=>r.date===dateStr);
-    const totalMins = rec.reduce((s,r)=>s+(r.durationMinutes||0),0);
-    const hrs = Math.floor(totalMins/60);
-    const has = rec.length>0;
-    let label = `${d}`;
-    if(totalMins>0){ label += `<div class='text-[10px] mt-1 text-gray-600'>${hrs}h</div>`; }
-    const bg = has?"bg-indigo-100 text-indigo-700 font-semibold":"bg-white";
-    grid.innerHTML += `
-      <div onclick="highlightDate('${dateStr}')" class='p-2 rounded-lg cursor-pointer ${bg}'>${label}</div>
-    `;
-  }();d++){
-    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const has=monthRecords.find(r=>r.date===dateStr);
-    grid.innerHTML+=`<div onclick="highlightDate('${dateStr}')" class='p-2 rounded-lg cursor-pointer ${has?"bg-indigo-100 text-indigo-700 font-semibold":"bg-white"}'>${d}</div>`;
-  }
-  container.appendChild(grid);
-}
-function highlightDate(date){
-  const rows=document.querySelectorAll('#listView .record-row');
-  rows.forEach(r=>{
-    if(r.dataset.date===date){r.classList.add('bg-yellow-100');}
-    else{r.classList.remove('bg-yellow-100');}
-  });
-}
-
-window.onload = async function() {
+        window.onload = async function() {
             await loadRecords();
             generateMonthOptions();
             updateDashboard();
         };
-
-        // ------------------ Excel Upload Handling ------------------
-        async function handleExcelUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            if (!confirm('업로드 시 동일한 날짜는 덮어쓰고, 새로운 날짜는 추가됩니다. 계속 진행하시겠습니까?')) return;
-            showLoading();
-            try {
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data);
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-                // Expecting columns: 날짜, 출근시간, 퇴근시간, 근무시간(분) (근무시간 컬럼 optional)
-                for (const row of json) {
-                    const date = row['날짜'] || row['date'] || row['Date'];
-                    const startTime = row['출근시간'] || row['startTime'] || row['Start'] || '';
-                    const endTime = row['퇴근시간'] || row['endTime'] || row['End'] || '';
-                    let durationMinutes = null;
-                    if (row['근무시간(분)'] != null && row['근무시간(분)'] !== '') durationMinutes = Number(row['근무시간(분)']);
-                    else if (row['근무시간'] && typeof row['근무시간'] === 'string') {
-                        // try to parse "(\d+)시간 (\d+)분"
-                        const m = row['근무시간'].match(/(\d+)\s*시간.*?(\d+)\s*분/);
-                        if (m) durationMinutes = Number(m[1]) * 60 + Number(m[2]);
-                    }
-                    // if duration not provided, compute from start/end
-                    if ((durationMinutes == null || isNaN(durationMinutes)) && date && startTime && endTime) {
-                        const s = new Date(`${date}T${startTime}`);
-                        const e = new Date(`${date}T${endTime}`);
-                        if (!isNaN(s) && !isNaN(e) && e > s) durationMinutes = Math.round((e - s) / (1000 * 60));
-                    }
-                    // skip invalid rows
-                    if (!date) continue;
-
-                    const recordData = { date, startTime, endTime, durationMinutes, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
-
-                    // Find existing by date -> overwrite first found, per 요청
-                    const snapshot = await db.collection('attendance').where('date','==',date).get();
-                    if (!snapshot.empty) {
-                        const docId = snapshot.docs[0].id;
-                        await db.collection('attendance').doc(docId).update(recordData);
-                    } else {
-                        await db.collection('attendance').add(recordData);
-                    }
-                }
-
-                await loadRecords();
-                updateDashboard();
-                alert('엑셀 업로드가 완료되었습니다.');
-            } catch (err) {
-                console.error(err);
-                alert('엑셀 업로드 중 오류가 발생했습니다.');
-            } finally {
-                hideLoading();
-                // reset file input
-                event.target.value = '';
-            }
-        }
-
     </script>
 </body>
 </html>
