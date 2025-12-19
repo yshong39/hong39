@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>돌봄선생님 근무표v0.8</title>
+    <title>돌봄 근무기록</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -20,6 +20,24 @@
         .modal.active { display: flex; }
         .loading { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 2000; }
         .loading.active { display: block; }
+        
+        /* 달력 스타일 */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.75rem; overflow: hidden; }
+        .calendar-day { background: white; min-height: 50px; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        .day-header { background: #f9fafb; font-weight: 600; padding: 10px 0; text-align: center; font-size: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        
+        /* 출근한 날짜 파란색 원 강조 */
+        .attendance-circle { 
+            background-color: #3b82f6; 
+            color: white !important; 
+            width: 32px; 
+            height: 32px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -40,7 +58,7 @@
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    <h1 class="text-3xl font-bold text-gray-800">돌봄 근무표</h1>
+                    <h1 class="text-3xl font-bold text-gray-800">돌봄 근무기록</h1>
                 </div>
                 <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,7 +66,7 @@
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    엑셀 다운로드
+                    엑셀
                 </button>
             </div>
 
@@ -93,14 +111,14 @@
                             <line x1="12" y1="20" x2="12" y2="4"></line>
                             <line x1="6" y1="20" x2="6" y2="14"></line>
                         </svg>
-                        현황 대시보드
+                        근무 현황 대시보드
                     </h2>
                     <div class="w-full sm:w-auto">
                         <select id="monthSelect" onchange="updateDashboard()" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-medium"></select>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mb-8">
                     <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
                         <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">출근 일수</div>
                         <div class="text-xl sm:text-3xl font-bold" id="monthDays">0일</div>
@@ -121,12 +139,22 @@
                     <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
                         <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">누적 일평균</div>
                         <div class="text-xl sm:text-3xl font-bold" id="cumulativeAvgHours">0시간</div>
-                        <div class="text-xs opacity-80 mt-1">2025.12~</div>
+                        <div class="text-xs opacity-80 mt-1">2024.12~</div>
                     </div>
                 </div>
 
+                <div class="bg-white border border-gray-100 rounded-xl p-4 sm:p-6 mb-8 shadow-sm">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span id="calendarTitle">근무 달력</span>
+                    </h3>
+                    <div class="calendar-grid" id="calendarGrid"></div>
+                </div>
+
                 <div class="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6">
-                    <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4" id="monthTitle">2025년 12월 출근 기록</h3>
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4" id="monthTitle">출근 기록</h3>
                     <div id="recordsList" class="space-y-2 max-h-80 overflow-y-auto"></div>
                 </div>
             </div>
@@ -136,7 +164,7 @@
     <div id="editModal" class="modal">
         <div class="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4">
             <div class="flex items-center justify-between mb-4 sm:mb-6">
-                <h3 class="text-xl sm:text-2xl font-bold text-gray-800">출근 기록 수정</h3>
+                <h3 class="text-xl sm:text-2xl font-bold text-gray-800">기록 수정</h3>
                 <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
                     <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -184,7 +212,9 @@
         function hideLoading() { document.getElementById('loading').classList.remove('active'); }
 
         function formatHoursToText(hours) {
-            const totalMinutes = Math.round(parseFloat(hours) * 60);
+            const hVal = parseFloat(hours);
+            if (isNaN(hVal)) return "0시간";
+            const totalMinutes = Math.round(hVal * 60);
             const h = Math.floor(totalMinutes / 60);
             const m = totalMinutes % 60;
             if (m === 0) return `${h}시간`;
@@ -208,7 +238,6 @@
                 snapshot.forEach(doc => { records.push({ id: doc.id, ...doc.data() }); });
             } catch (error) {
                 console.error("데이터 로드 오류:", error);
-                alert("데이터를 불러오는데 실패했습니다.");
             } finally {
                 hideLoading();
             }
@@ -218,30 +247,17 @@
             const date = document.getElementById('dateInput').value;
             const startTime = document.getElementById('startTimeInput').value;
             const endTime = document.getElementById('endTimeInput').value;
-
-            if (!date || !startTime || !endTime) { alert('모든 항목을 입력해주세요.'); return; }
-
+            if (!date || !startTime || !endTime) { alert('항목을 입력하세요.'); return; }
             const start = new Date(`${date}T${startTime}`);
             const end = new Date(`${date}T${endTime}`);
-            if (end <= start) { alert('퇴근 시간은 출근 시간보다 늦어야 합니다.'); return; }
-
+            if (end <= start) { alert('시간 설정 오류'); return; }
             const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
-            const newRecord = { date, startTime, endTime, hours, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
-
             showLoading();
             try {
-                await db.collection('attendance').add(newRecord);
+                await db.collection('attendance').add({ date, startTime, endTime, hours, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
                 await loadRecords();
-                document.getElementById('dateInput').value = '';
-                document.getElementById('startTimeInput').value = '';
-                document.getElementById('endTimeInput').value = '';
                 updateDashboard();
-            } catch (error) {
-                console.error("저장 오류:", error);
-                alert("데이터 저장에 실패했습니다.");
-            } finally {
-                hideLoading();
-            }
+            } catch (e) { console.error(e); } finally { hideLoading(); }
         }
 
         function openEditModal(id) {
@@ -260,160 +276,160 @@
         }
 
         async function saveEdit() {
-            if (!editingId) return;
             const date = document.getElementById('editDate').value;
             const startTime = document.getElementById('editStartTime').value;
             const endTime = document.getElementById('editEndTime').value;
-
-            if (!date || !startTime || !endTime) { alert('모든 항목을 입력해주세요.'); return; }
-
             const start = new Date(`${date}T${startTime}`);
             const end = new Date(`${date}T${endTime}`);
-            if (end <= start) { alert('퇴근 시간은 출근 시간보다 늦어야 합니다.'); return; }
-
             const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
-
             showLoading();
             try {
                 await db.collection('attendance').doc(editingId).update({ date, startTime, endTime, hours });
                 await loadRecords();
                 updateDashboard();
                 closeEditModal();
-            } catch (error) {
-                console.error("수정 오류:", error);
-                alert("데이터 수정에 실패했습니다.");
-            } finally {
-                hideLoading();
-            }
+            } catch (e) { console.error(e); } finally { hideLoading(); }
         }
 
         async function deleteRecord(id) {
-            if (!confirm('이 기록을 삭제하시겠습니까?')) return;
+            if (!confirm('삭제하시겠습니까?')) return;
             showLoading();
             try {
                 await db.collection('attendance').doc(id).delete();
                 await loadRecords();
                 updateDashboard();
-            } catch (error) {
-                console.error("삭제 오류:", error);
-                alert("데이터 삭제에 실패했습니다.");
-            } finally {
-                hideLoading();
-            }
+            } catch (e) { console.error(e); } finally { hideLoading(); }
         }
 
         function exportToExcel() {
-            if (records.length === 0) { alert('다운로드할 출근 기록이 없습니다.'); return; }
-            const sortedRecords = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
-            const excelData = sortedRecords.map(record => ({
-                '날짜': record.date,
-                '출근시간': record.startTime,
-                '퇴근시간': record.endTime,
-                '근무시간': parseFloat(record.hours)
-            }));
-            const worksheet = XLSX.utils.json_to_sheet(excelData);
-            worksheet['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, '출근기록');
-            const today = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(workbook, `돌봄선생님_출근기록_${today}.xlsx`);
+            if (records.length === 0) return;
+            const sorted = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const data = sorted.map(r => ({ '날짜': r.date, '출근': r.startTime, '퇴근': r.endTime, '시간': parseFloat(r.hours) }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '기록');
+            XLSX.writeFile(wb, `근무기록.xlsx`);
         }
 
         function generateMonthOptions() {
             const select = document.getElementById('monthSelect');
             select.innerHTML = '';
-            const startDate = new Date(2025, 11, 1);
-            const currentDate = new Date();
-            const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 12, 1);
-            let date = new Date(startDate);
-            while (date <= endDate) {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const value = `${year}-${month}`;
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = `${year}년 ${month}월`;
-                select.appendChild(option);
-                date.setMonth(date.getMonth() + 1);
+            const startDate = new Date(2024, 11, 1);
+            const current = new Date();
+            let d = new Date(startDate);
+            while (d <= new Date(current.getFullYear(), current.getMonth() + 12, 1)) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const opt = document.createElement('option');
+                opt.value = `${y}-${m}`;
+                opt.textContent = `${y}년 ${m}월`;
+                if (y === current.getFullYear() && d.getMonth() === current.getMonth()) opt.selected = true;
+                select.appendChild(opt);
+                d.setMonth(d.getMonth() + 1);
+            }
+        }
+
+        function renderCalendar(year, month, monthRecords) {
+            // 달력 제목 동적 변경
+            document.getElementById('calendarTitle').textContent = `${year}년 ${month}월 근무 달력`;
+            
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+            const days = ['일', '월', '화', '수', '목', '금', '토'];
+            days.forEach(d => {
+                const h = document.createElement('div');
+                h.className = `day-header ${d === '일' ? 'text-red-500' : d === '토' ? 'text-blue-500' : 'text-gray-600'}`;
+                h.textContent = d;
+                grid.appendChild(h);
+            });
+            const first = new Date(year, month - 1, 1).getDay();
+            const last = new Date(year, month, 0).getDate();
+            for (let i = 0; i < first; i++) {
+                const e = document.createElement('div');
+                e.className = 'calendar-day bg-gray-50';
+                grid.appendChild(e);
+            }
+            for (let d = 1; d <= last; d++) {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const dow = new Date(year, month - 1, d).getDay();
+                const el = document.createElement('div');
+                el.className = 'calendar-day';
+                let color = 'text-gray-800';
+                if (dow === 0) color = 'text-red-500';
+                else if (dow === 6) color = 'text-blue-500';
+                const span = document.createElement('span');
+                span.className = `text-sm font-semibold ${color}`;
+                span.textContent = d;
+                if (monthRecords.some(r => r.date === dateStr)) {
+                    span.className = 'attendance-circle text-sm font-bold';
+                }
+                el.appendChild(span);
+                grid.appendChild(el);
             }
         }
 
         function updateDashboard() {
             const selectedMonth = document.getElementById('monthSelect').value;
             const [year, month] = selectedMonth.split('-').map(Number);
+            
+            // 월별 데이터
             const monthRecords = records.filter(r => {
-                const recordDate = new Date(r.date);
-                return recordDate.getFullYear() === year && recordDate.getMonth() + 1 === month;
+                const d = new Date(r.date);
+                return d.getFullYear() === year && d.getMonth() + 1 === month;
             });
-            const startDate = new Date(2025, 11, 1);
-            const endDate = new Date(year, month - 1, 31);
+            renderCalendar(year, month, monthRecords);
+
+            // 누적 데이터 (2024년 12월 1일부터 선택한 월의 마지막 날까지)
+            const baseDate = new Date(2024, 11, 1);
+            const lastDayOfMonth = new Date(year, month, 0);
             const cumulativeRecords = records.filter(r => {
-                const recordDate = new Date(r.date);
-                return recordDate >= startDate && recordDate <= endDate;
+                const rd = new Date(r.date);
+                return rd >= baseDate && rd <= lastDayOfMonth;
             });
-            const monthDays = monthRecords.length;
-            const monthTotalHours = monthRecords.reduce((sum, r) => sum + parseFloat(r.hours), 0);
-            const monthAvgHours = monthDays > 0 ? (monthTotalHours / monthDays).toFixed(2) : '0.00';
-            const expectedSalary = monthDays * 50000;
-            const cumulativeDays = cumulativeRecords.length;
-            const cumulativeTotalHours = cumulativeRecords.reduce((sum, r) => sum + parseFloat(r.hours), 0);
-            const cumulativeAvgHours = cumulativeDays > 0 ? (cumulativeTotalHours / cumulativeDays).toFixed(2) : '0.00';
-            document.getElementById('monthDays').textContent = `${monthDays}일`;
-            document.getElementById('expectedSalary').textContent = `${expectedSalary.toLocaleString('ko-KR')}원`;
-            document.getElementById('monthTotalHours').textContent = formatHoursToText(monthTotalHours);
-            document.getElementById('monthAvgHours').textContent = formatHoursToText(monthAvgHours);
-            document.getElementById('cumulativeAvgHours').textContent = formatHoursToText(cumulativeAvgHours);
+
+            const mDays = monthRecords.length;
+            const mHours = monthRecords.reduce((s, r) => s + parseFloat(r.hours), 0);
+            
+            const cDays = cumulativeRecords.length;
+            const cHours = cumulativeRecords.reduce((s, r) => s + parseFloat(r.hours), 0);
+
+            document.getElementById('monthDays').textContent = `${mDays}일`;
+            document.getElementById('expectedSalary').textContent = `${(mDays * 50000).toLocaleString()}원`;
+            document.getElementById('monthTotalHours').textContent = formatHoursToText(mHours);
+            document.getElementById('monthAvgHours').textContent = formatHoursToText(mDays > 0 ? (mHours / mDays).toFixed(2) : 0);
+            
+            // 누적 일 평균 수정 (정상적인 평균 계산)
+            document.getElementById('cumulativeAvgHours').textContent = formatHoursToText(cDays > 0 ? (cHours / cDays).toFixed(2) : 0);
+            
             document.getElementById('monthTitle').textContent = `${year}년 ${month}월 출근 기록`;
-            const recordsList = document.getElementById('recordsList');
-            if (monthRecords.length === 0) {
-                recordsList.innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">선택한 월에 출근 기록이 없습니다.</div>';
+            
+            const list = document.getElementById('recordsList');
+            if (mDays === 0) {
+                list.innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">기록 없음</div>';
             } else {
-                const sortedMonthRecords = [...monthRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
-                recordsList.innerHTML = sortedMonthRecords.map((record, index) => {
-                    return `
-                    <div class="bg-white rounded-lg p-2 sm:p-4 shadow-sm hover:shadow-md transition">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="flex items-start gap-2 flex-1 min-w-0">
-                                <div class="bg-indigo-600 text-white rounded-lg w-7 h-7 sm:w-10 sm:h-10 flex items-center justify-center font-bold text-xs sm:text-base flex-shrink-0">${index + 1}</div>
-                                <div class="flex flex-col gap-1 flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 sm:gap-3">
-                                        <div class="font-semibold text-gray-800 text-sm sm:text-base whitespace-nowrap">${formatDate(record.date)}</div>
-                                        <div class="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                                            <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <polyline points="12 6 12 12 16 14"></polyline>
-                                            </svg>
-                                            <span class="whitespace-nowrap">${record.startTime}~${record.endTime}</span>
-                                        </div>
-                                    </div>
-                                    <div class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs sm:text-sm font-medium w-fit">${formatHoursToText(record.hours)}</div>
-                                </div>
-                            </div>
-                            <div class="flex gap-1 flex-shrink-0">
-                                <button onclick="openEditModal('${record.id}')" class="text-blue-500 hover:text-blue-700 p-1.5 sm:p-2 rounded-lg hover:bg-blue-50 transition" title="수정">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                    </svg>
-                                </button>
-                                <button onclick="deleteRecord('${record.id}')" class="text-red-500 hover:text-red-700 p-1.5 sm:p-2 rounded-lg hover:bg-red-50 transition" title="삭제">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                    </svg>
-                                </button>
+                list.innerHTML = monthRecords.sort((a,b)=>new Date(a.date)-new Date(b.date)).map((r, i) => `
+                    <div class="bg-white rounded-lg p-3 shadow-sm flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-indigo-600 text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold text-xs">${i+1}</div>
+                            <div>
+                                <div class="font-semibold text-sm">${formatDate(r.date)}</div>
+                                <div class="text-xs text-gray-500">${r.startTime}~${r.endTime} (${formatHoursToText(r.hours)})</div>
                             </div>
                         </div>
+                        <div class="flex gap-2">
+                            <button onclick="openEditModal('${r.id}')" class="text-blue-500 text-xs font-bold px-2 py-1 bg-blue-50 rounded">수정</button>
+                            <button onclick="deleteRecord('${r.id}')" class="text-red-500 text-xs font-bold px-2 py-1 bg-red-50 rounded">삭제</button>
+                        </div>
                     </div>
-                `}).join('');
+                `).join('');
             }
         }
 
         window.onload = async function() {
-            await loadRecords();
             generateMonthOptions();
+            await loadRecords();
             updateDashboard();
         };
     </script>
 </body>
-</html>
+</html>오후 3:46 2025-12-19 (금)
