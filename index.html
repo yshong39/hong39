@@ -2,435 +2,1067 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>돌봄 근무기록</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-size: 14px;
+        * { font-family: 'Noto Sans KR', sans-serif; box-sizing: border-box; }
+        html { -webkit-tap-highlight-color: transparent; }
+        body { background: #f0f3f8; font-size: 14px; margin: 0; min-height: 100vh; }
+
+        /* ── 카드 ── */
+        .card { background: #fff; border-radius: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04); }
+
+        /* ── 로딩 ── */
+        .overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.75); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .overlay.on { display: flex; }
+        .spinner { width: 36px; height: 36px; border: 3px solid #e0e4f4; border-top-color: #4055d8; border-radius: 50%; animation: spin .7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── 모달 ── */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15,20,50,0.45); z-index: 1000; align-items: flex-end; justify-content: center; }
+        .modal.on { display: flex; }
+        .modal-box {
+            background: white; width: 100%; max-width: 480px;
+            border-radius: 22px 22px 0 0;
+            padding: 24px 20px 32px;
+            max-height: 92vh; overflow-y: auto;
+            animation: slideUp .22s ease;
         }
-        @media (min-width: 640px) {
-            body { font-size: 16px; }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
+        @media (min-width: 600px) {
+            .modal { align-items: center; }
+            .modal-box { border-radius: 22px; max-width: 440px; }
         }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-        .modal.active { display: flex; }
-        .loading { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 2000; }
-        .loading.active { display: block; }
-        
-        /* 달력 스타일 */
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.75rem; overflow: hidden; }
-        .calendar-day { background: white; min-height: 50px; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
-        .day-header { background: #f9fafb; font-weight: 600; padding: 10px 0; text-align: center; font-size: 0.75rem; border-bottom: 1px solid #e5e7eb; }
-        
-        /* 출근한 날짜 파란색 원 강조 */
-        .attendance-circle { 
-            background-color: #3b82f6; 
-            color: white !important; 
-            width: 32px; 
-            height: 32px; 
-            border-radius: 50%; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        .modal-handle { width: 40px; height: 4px; background: #e2e6f0; border-radius: 4px; margin: 0 auto 20px; }
+
+        /* ────────────────────────────────────────
+           개선 2: 달력 테두리 강화
+        ──────────────────────────────────────── */
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            border: 1.5px solid #c8cde0;
+            border-radius: 14px;
+            overflow: hidden;
         }
+        .cal-head {
+            background: #eef0fb;
+            font-weight: 800;
+            font-size: 12px;
+            padding: 10px 0;
+            text-align: center;
+            border-right: 1px solid #d4d8ea;
+            border-bottom: 1.5px solid #c8cde0;
+        }
+        .cal-head:last-child { border-right: none; }
+        .cal-day {
+            background: white;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #dde1f0;
+            border-bottom: 1px solid #dde1f0;
+        }
+        .cal-day:nth-child(7n) { border-right: none; }
+        /* 마지막 행 테두리는 trailing 빈셀로 채워서 처리 — nth-last-child 미사용 */
+        .att-dot {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: #4055d8; color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 800;
+            box-shadow: 0 2px 8px rgba(64,85,216,.4);
+        }
+        .cal-day-num { font-size: 13px; font-weight: 500; }
+
+        /* ── 접기/펼치기 ── */
+        .collapse-body { overflow: hidden; transition: max-height .3s cubic-bezier(.4,0,.2,1); max-height: 0; }
+        .collapse-body.open { max-height: 600px; }
+        .chevron { transition: transform .25s; }
+        .chevron.open { transform: rotate(180deg); }
+
+        /* ── 입력 ── */
+        .ipt {
+            width: 100%; padding: 10px 13px;
+            border: 1.5px solid #e4e8f2; border-radius: 11px;
+            font-size: 14px; font-family: inherit;
+            outline: none; transition: border-color .15s, box-shadow .15s;
+            background: #fafbff;
+        }
+        .ipt:focus { border-color: #4055d8; box-shadow: 0 0 0 3px rgba(64,85,216,.1); }
+
+        /* ── 버튼 ── */
+        .btn { border: none; cursor: pointer; font-family: inherit; font-weight: 700; transition: opacity .15s, transform .1s; border-radius: 12px; }
+        .btn:active { transform: scale(.97); }
+        .btn-blue { background: #4055d8; color: white; padding: 11px 20px; font-size: 14px; }
+        .btn-blue:hover { background: #3346c8; }
+        .btn-gray { background: #f0f2f8; color: #5a6480; padding: 11px 20px; font-size: 14px; }
+        .btn-sm-blue { background: #eef0fb; color: #4055d8; padding: 5px 11px; font-size: 12px; border-radius: 8px; }
+        .btn-sm-red { background: #fef0f0; color: #d63b3b; padding: 5px 11px; font-size: 12px; border-radius: 8px; }
+        .btn-sm-gray { background: #f0f2f8; color: #5a6480; padding: 6px 14px; font-size: 12px; border-radius: 9px; }
+        .btn-sm-indigo { background: #4055d8; color: white; padding: 6px 14px; font-size: 12px; border-radius: 9px; }
+
+        /* ────────────────────────────────────────
+           개선 1: 대시보드 stat 카드 가변 글씨
+        ──────────────────────────────────────── */
+        .stat { border-radius: 16px; padding: clamp(10px, 3vw, 15px) clamp(8px, 2.5vw, 14px); }
+        .stat-label  { font-size: clamp(9px, 2.2vw, 11px); font-weight: 700; color: rgba(255,255,255,0.75); margin-bottom: 4px; }
+        .stat-main   { font-size: clamp(20px, 6vw, 30px); font-weight: 800; color: white; line-height: 1; }
+        .stat-main-md { font-size: clamp(15px, 4.2vw, 20px); font-weight: 800; color: white; line-height: 1.1; }
+        .stat-main-sm { font-size: clamp(12px, 3.2vw, 15px); font-weight: 800; color: white; line-height: 1.2; }
+        .stat-sub    { font-size: clamp(9px, 2.2vw, 11px); color: rgba(255,255,255,0.8); margin-top: 3px; }
+        .stat-sub-dim { font-size: clamp(8px, 2vw, 10px); color: rgba(255,255,255,0.55); margin-top: 2px; }
+
+        /* ────────────────────────────────────────
+           개선 4: 프리셋 배지
+        ──────────────────────────────────────── */
+        .preset-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: #eef9f4; color: #0ea875;
+            font-size: 11px; font-weight: 700;
+            padding: 3px 9px; border-radius: 20px;
+            border: 1px solid #bbf0d4;
+        }
+        .preset-badge.modified {
+            background: #fff8ee; color: #e07b1a;
+            border-color: #ffd9a0;
+        }
+
+        /* ── 스크롤 ── */
+        .scroll-y { overflow-y: auto; }
+        .scroll-y::-webkit-scrollbar { width: 3px; }
+        .scroll-y::-webkit-scrollbar-thumb { background: #d0d4e8; border-radius: 4px; }
+
+        /* ── 배지 ── */
+        .badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+        .badge-green { background: #d1fadf; color: #1a7f4b; }
+        .badge-purple { background: #ede9fe; color: #7c3aed; }
+
+        /* ── 구분선 ── */
+        .divider { height: 1px; background: #f0f2f8; margin: 10px 0; }
+
+        /* ── 섹션 라벨 ── */
+        .sec-label { font-size: 11px; font-weight: 700; color: #9aa0b8; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-    <div id="loading" class="loading">
-        <div class="text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p class="text-gray-700 font-medium">데이터 로딩 중...</p>
+<body>
+
+<!-- 로딩 -->
+<div id="loading" class="overlay">
+    <div class="spinner"></div>
+</div>
+
+<div class="max-w-lg mx-auto px-4 pt-6 pb-24 space-y-4">
+
+    <!-- ══ 헤더 ══ -->
+    <div class="flex items-center justify-between px-1">
+        <div>
+            <h1 class="text-[20px] font-extrabold text-gray-900 tracking-tight">돌봄 근무기록</h1>
+            <p class="text-xs text-gray-400 mt-0.5" id="lastUpdated">불러오는 중…</p>
         </div>
+        <button onclick="exportToExcel()" title="엑셀 다운로드"
+            class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition flex items-center justify-center">
+            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+        </button>
     </div>
 
-    <div class="max-w-6xl mx-auto">
-        <div class="bg-white rounded-2xl shadow-xl p-8 mb-6">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-3">
-                    <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    <h1 class="text-3xl font-bold text-gray-800">돌봄 근무기록</h1>
-                </div>
-                <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    엑셀
-                </button>
+    <!-- ══ 출퇴근 입력 ══ -->
+    <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+            <p class="sec-label mb-0">출퇴근 기록 입력</p>
+            <!-- 개선 4: 프리셋 배지 -->
+            <span id="presetBadge" class="preset-badge" style="display:none">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <span id="presetBadgeText">프리셋 적용됨</span>
+            </span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+            <div>
+                <label class="block text-[11px] text-gray-500 mb-1 font-semibold">날짜</label>
+                <input type="date" id="dateInput" class="ipt text-[13px]" onchange="onDateChange()">
             </div>
-
-            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6 mb-8">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    출퇴근 기록 입력
-                </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">날짜</label>
-                        <input type="date" id="dateInput" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">출근 시간</label>
-                        <input type="time" id="startTimeInput" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">퇴근 시간</label>
-                        <input type="time" id="endTimeInput" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    </div>
-                    <div class="flex items-end">
-                        <button onclick="addRecord()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 sm:px-6 rounded-lg transition duration-200 flex items-center justify-center gap-2 text-sm sm:text-base">
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                            추가
-                        </button>
-                    </div>
-                </div>
+            <div>
+                <label class="block text-[11px] text-gray-500 mb-1 font-semibold">출근</label>
+                <input type="time" id="startTimeInput" class="ipt text-[13px]" oninput="onTimeManualEdit()">
             </div>
-
-            <div class="mb-6 sm:mb-8">
-                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
-                    <h2 class="text-base sm:text-xl font-semibold text-gray-800 flex items-center gap-2">
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <line x1="18" y1="20" x2="18" y2="10"></line>
-                            <line x1="12" y1="20" x2="12" y2="4"></line>
-                            <line x1="6" y1="20" x2="6" y2="14"></line>
-                        </svg>
-                        근무 현황 대시보드
-                    </h2>
-                    <div class="w-full sm:w-auto">
-                        <select id="monthSelect" onchange="updateDashboard()" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-medium"></select>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mb-8">
-                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
-                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">출근 일수</div>
-                        <div class="text-xl sm:text-3xl font-bold" id="monthDays">0일</div>
-                    </div>
-                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
-                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1">지급 예정 급여</div>
-                        <div class="text-xs opacity-80 mb-1">(5만원/일)</div>
-                        <div class="text-lg sm:text-3xl font-bold" id="expectedSalary">0원</div>
-                    </div>
-                    <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white col-span-2 lg:col-span-1">
-                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">총 근무시간</div>
-                        <div class="text-xl sm:text-3xl font-bold" id="monthTotalHours">0시간</div>
-                    </div>
-                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
-                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">월 일평균</div>
-                        <div class="text-xl sm:text-3xl font-bold" id="monthAvgHours">0시간</div>
-                    </div>
-                    <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg sm:rounded-xl p-3 sm:p-6 text-white">
-                        <div class="text-xs sm:text-sm font-medium opacity-90 mb-1 sm:mb-2">누적 일평균</div>
-                        <div class="text-xl sm:text-3xl font-bold" id="cumulativeAvgHours">0시간</div>
-                        <div class="text-xs opacity-80 mt-1">2025.12~</div>
-                    </div>
-                </div>
-
-                <div class="bg-white border border-gray-100 rounded-xl p-4 sm:p-6 mb-8 shadow-sm">
-                    <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <span id="calendarTitle">근무 달력</span>
-                    </h3>
-                    <div class="calendar-grid" id="calendarGrid"></div>
-                </div>
-
-                <div class="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6">
-                    <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4" id="monthTitle">출근 기록</h3>
-                    <div id="recordsList" class="space-y-2 max-h-80 overflow-y-auto"></div>
-                </div>
+            <div>
+                <label class="block text-[11px] text-gray-500 mb-1 font-semibold">퇴근</label>
+                <input type="time" id="endTimeInput" class="ipt text-[13px]" oninput="onTimeManualEdit()">
             </div>
         </div>
+        <button onclick="addRecord()" class="btn btn-blue w-full">기록 추가</button>
     </div>
 
-    <div id="editModal" class="modal">
-        <div class="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4">
-            <div class="flex items-center justify-between mb-4 sm:mb-6">
-                <h3 class="text-xl sm:text-2xl font-bold text-gray-800">기록 수정</h3>
-                <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
+    <!-- ══ 대시보드 ══ -->
+    <div class="card p-4">
+        <p class="sec-label">근무 현황</p>
+
+        <!-- 개선 1: 가변 글씨 대시보드 카드 -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <!-- 이번 달 출근 -->
+            <div class="stat" style="background: linear-gradient(135deg,#4055d8 0%,#5a78f4 100%);">
+                <div class="stat-label" id="thisMonthLabel">이번 달</div>
+                <div class="stat-main" id="thisMonthDays">0</div>
+                <div class="stat-sub">일 출근</div>
             </div>
-            <div class="space-y-3 sm:space-y-4">
-                <div>
-                    <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">날짜</label>
-                    <input type="date" id="editDate" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                </div>
-                <div>
-                    <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">출근 시간</label>
-                    <input type="time" id="editStartTime" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                </div>
-                <div>
-                    <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">퇴근 시간</label>
-                    <input type="time" id="editEndTime" class="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                </div>
-                <div class="flex gap-3 pt-2 sm:pt-4">
-                    <button onclick="saveEdit()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 sm:py-3 rounded-lg transition duration-200 text-sm sm:text-base">저장</button>
-                    <button onclick="closeEditModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 sm:py-3 rounded-lg transition duration-200 text-sm sm:text-base">취소</button>
-                </div>
+            <!-- 현재 주기 -->
+            <div class="stat" style="background: linear-gradient(135deg,#7c3aed 0%,#a78bfa 100%);">
+                <div class="stat-label" id="cycleRange">현재 주기</div>
+                <div class="stat-main-md" id="cycleDays">0일</div>
+                <div class="stat-sub" id="cycleAmt">0원</div>
+                <div class="stat-sub-dim" id="cycleDday"></div>
+            </div>
+            <!-- 다음 지급 -->
+            <div class="stat" style="background: linear-gradient(135deg,#0ea875 0%,#34d39a 100%);">
+                <div class="stat-label">다음 지급</div>
+                <div class="stat-main-sm" id="nextPayDate">-</div>
+                <div class="stat-sub" id="nextPayAmt">-</div>
             </div>
         </div>
-    </div>
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAbYEki5kraulyXH6iHfbMi5LbVmvlVZu0",
-            authDomain: "hong39-9cf7f.firebaseapp.com",
-            projectId: "hong39-9cf7f",
-            storageBucket: "hong39-9cf7f.firebasestorage.app",
-            messagingSenderId: "927700556500",
-            appId: "1:927700556500:web:9fd8f4b2e8c971b8677941"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        let records = [];
-        let editingId = null;
-
-        function showLoading() { document.getElementById('loading').classList.add('active'); }
-        function hideLoading() { document.getElementById('loading').classList.remove('active'); }
-
-        function formatHoursToText(hours) {
-            const hVal = parseFloat(hours);
-            if (isNaN(hVal)) return "0시간";
-            const totalMinutes = Math.round(hVal * 60);
-            const h = Math.floor(totalMinutes / 60);
-            const m = totalMinutes % 60;
-            if (m === 0) return `${h}시간`;
-            return `${h}시간 ${m}분`;
-        }
-
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-            const dayOfWeek = dayNames[date.getDay()];
-            return `${month}/${day}(${dayOfWeek})`;
-        }
-
-        async function loadRecords() {
-            showLoading();
-            try {
-                const snapshot = await db.collection('attendance').orderBy('date', 'desc').get();
-                records = [];
-                snapshot.forEach(doc => { records.push({ id: doc.id, ...doc.data() }); });
-            } catch (error) {
-                console.error("데이터 로드 오류:", error);
-            } finally {
-                hideLoading();
-            }
-        }
-
-        async function addRecord() {
-            const date = document.getElementById('dateInput').value;
-            const startTime = document.getElementById('startTimeInput').value;
-            const endTime = document.getElementById('endTimeInput').value;
-            if (!date || !startTime || !endTime) { alert('항목을 입력하세요.'); return; }
-            const start = new Date(`${date}T${startTime}`);
-            const end = new Date(`${date}T${endTime}`);
-            if (end <= start) { alert('시간 설정 오류'); return; }
-            const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
-            showLoading();
-            try {
-                await db.collection('attendance').add({ date, startTime, endTime, hours, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
-                await loadRecords();
-                updateDashboard();
-            } catch (e) { console.error(e); } finally { hideLoading(); }
-        }
-
-        function openEditModal(id) {
-            const record = records.find(r => r.id === id);
-            if (!record) return;
-            editingId = id;
-            document.getElementById('editDate').value = record.date;
-            document.getElementById('editStartTime').value = record.startTime;
-            document.getElementById('editEndTime').value = record.endTime;
-            document.getElementById('editModal').classList.add('active');
-        }
-
-        function closeEditModal() {
-            editingId = null;
-            document.getElementById('editModal').classList.remove('active');
-        }
-
-        async function saveEdit() {
-            const date = document.getElementById('editDate').value;
-            const startTime = document.getElementById('editStartTime').value;
-            const endTime = document.getElementById('editEndTime').value;
-            const start = new Date(`${date}T${startTime}`);
-            const end = new Date(`${date}T${endTime}`);
-            const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
-            showLoading();
-            try {
-                await db.collection('attendance').doc(editingId).update({ date, startTime, endTime, hours });
-                await loadRecords();
-                updateDashboard();
-                closeEditModal();
-            } catch (e) { console.error(e); } finally { hideLoading(); }
-        }
-
-        async function deleteRecord(id) {
-            if (!confirm('삭제하시겠습니까?')) return;
-            showLoading();
-            try {
-                await db.collection('attendance').doc(id).delete();
-                await loadRecords();
-                updateDashboard();
-            } catch (e) { console.error(e); } finally { hideLoading(); }
-        }
-
-        function exportToExcel() {
-            if (records.length === 0) return;
-            const sorted = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
-            const data = sorted.map(r => ({ '날짜': r.date, '출근': r.startTime, '퇴근': r.endTime, '시간': parseFloat(r.hours) }));
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, '기록');
-            XLSX.writeFile(wb, `근무기록.xlsx`);
-        }
-
-        function generateMonthOptions() {
-            const select = document.getElementById('monthSelect');
-            select.innerHTML = '';
-            const startDate = new Date(2024, 11, 1);
-            const current = new Date();
-            let d = new Date(startDate);
-            while (d <= new Date(current.getFullYear(), current.getMonth() + 12, 1)) {
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const opt = document.createElement('option');
-                opt.value = `${y}-${m}`;
-                opt.textContent = `${y}년 ${m}월`;
-                if (y === current.getFullYear() && d.getMonth() === current.getMonth()) opt.selected = true;
-                select.appendChild(opt);
-                d.setMonth(d.getMonth() + 1);
-            }
-        }
-
-        function renderCalendar(year, month, monthRecords) {
-            // 달력 제목 동적 변경
-            document.getElementById('calendarTitle').textContent = `${year}년 ${month}월 근무 달력`;
-            
-            const grid = document.getElementById('calendarGrid');
-            grid.innerHTML = '';
-            const days = ['일', '월', '화', '수', '목', '금', '토'];
-            days.forEach(d => {
-                const h = document.createElement('div');
-                h.className = `day-header ${d === '일' ? 'text-red-500' : d === '토' ? 'text-blue-500' : 'text-gray-600'}`;
-                h.textContent = d;
-                grid.appendChild(h);
-            });
-            const first = new Date(year, month - 1, 1).getDay();
-            const last = new Date(year, month, 0).getDate();
-            for (let i = 0; i < first; i++) {
-                const e = document.createElement('div');
-                e.className = 'calendar-day bg-gray-50';
-                grid.appendChild(e);
-            }
-            for (let d = 1; d <= last; d++) {
-                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const dow = new Date(year, month - 1, d).getDay();
-                const el = document.createElement('div');
-                el.className = 'calendar-day';
-                let color = 'text-gray-800';
-                if (dow === 0) color = 'text-red-500';
-                else if (dow === 6) color = 'text-blue-500';
-                const span = document.createElement('span');
-                span.className = `text-sm font-semibold ${color}`;
-                span.textContent = d;
-                if (monthRecords.some(r => r.date === dateStr)) {
-                    span.className = 'attendance-circle text-sm font-bold';
-                }
-                el.appendChild(span);
-                grid.appendChild(el);
-            }
-        }
-
-        function updateDashboard() {
-            const selectedMonth = document.getElementById('monthSelect').value;
-            const [year, month] = selectedMonth.split('-').map(Number);
-            
-            // 월별 데이터
-            const monthRecords = records.filter(r => {
-                const d = new Date(r.date);
-                return d.getFullYear() === year && d.getMonth() + 1 === month;
-            });
-            renderCalendar(year, month, monthRecords);
-
-            // 누적 데이터 (2024년 12월 1일부터 선택한 월의 마지막 날까지)
-            const baseDate = new Date(2024, 11, 1);
-            const lastDayOfMonth = new Date(year, month, 0);
-            const cumulativeRecords = records.filter(r => {
-                const rd = new Date(r.date);
-                return rd >= baseDate && rd <= lastDayOfMonth;
-            });
-
-            const mDays = monthRecords.length;
-            const mHours = monthRecords.reduce((s, r) => s + parseFloat(r.hours), 0);
-            
-            const cDays = cumulativeRecords.length;
-            const cHours = cumulativeRecords.reduce((s, r) => s + parseFloat(r.hours), 0);
-
-            document.getElementById('monthDays').textContent = `${mDays}일`;
-            document.getElementById('expectedSalary').textContent = `${(mDays * 50000).toLocaleString()}원`;
-            document.getElementById('monthTotalHours').textContent = formatHoursToText(mHours);
-            document.getElementById('monthAvgHours').textContent = formatHoursToText(mDays > 0 ? (mHours / mDays).toFixed(2) : 0);
-            
-            // 누적 일 평균 수정 (정상적인 평균 계산)
-            document.getElementById('cumulativeAvgHours').textContent = formatHoursToText(cDays > 0 ? (cHours / cDays).toFixed(2) : 0);
-            
-            document.getElementById('monthTitle').textContent = `${year}년 ${month}월 출근 기록`;
-            
-            const list = document.getElementById('recordsList');
-            if (mDays === 0) {
-                list.innerHTML = '<div class="text-center py-8 text-gray-500 text-sm">기록 없음</div>';
-            } else {
-                list.innerHTML = monthRecords.sort((a,b)=>new Date(a.date)-new Date(b.date)).map((r, i) => `
-                    <div class="bg-white rounded-lg p-3 shadow-sm flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="bg-indigo-600 text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold text-xs">${i+1}</div>
-                            <div>
-                                <div class="font-semibold text-sm">${formatDate(r.date)}</div>
-                                <div class="text-xs text-gray-500">${r.startTime}~${r.endTime} (${formatHoursToText(r.hours)})</div>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="openEditModal('${r.id}')" class="text-blue-500 text-xs font-bold px-2 py-1 bg-blue-50 rounded">수정</button>
-                            <button onclick="deleteRecord('${r.id}')" class="text-red-500 text-xs font-bold px-2 py-1 bg-red-50 rounded">삭제</button>
+        <!-- 지급 내역 요약 (접기) -->
+        <div class="border border-gray-100 rounded-2xl overflow-hidden">
+            <button onclick="toggleSummary()"
+                class="w-full flex items-center justify-between px-4 py-3 text-[13px] font-bold text-gray-700 hover:bg-gray-50 transition">
+                <span class="flex items-center gap-2">
+                    <span class="text-base">💰</span> 지급 내역 요약
+                </span>
+                <svg id="summaryChevron" class="chevron w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9" stroke-width="2.5"/>
+                </svg>
+            </button>
+            <div id="summaryBody" class="collapse-body">
+                <div class="px-4 pb-4 space-y-2.5">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[12px] text-gray-500">지급 완료</span>
+                        <span class="text-[13px] font-bold text-gray-800" id="sumPaid">-</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[12px] text-gray-500">현재 미지급</span>
+                        <span class="text-[13px] font-bold text-amber-500" id="sumUnpaid">-</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[12px] text-gray-500">총 발생액</span>
+                        <span class="text-[13px] font-bold text-gray-800" id="sumTotal">-</span>
+                    </div>
+                    <!-- 개선 3: 연간 예상비용 + 근거 표시 -->
+                    <div class="flex justify-between items-start">
+                        <span class="text-[12px] text-gray-500">연간 예상 비용</span>
+                        <div class="text-right">
+                            <div class="text-[12px] font-semibold text-gray-400" id="sumAnnual">-</div>
+                            <div class="text-[10px] text-gray-300 mt-0.5" id="sumAnnualBasis"></div>
                         </div>
                     </div>
-                `).join('');
-            }
-        }
+                </div>
+            </div>
+        </div>
+    </div>
 
-        window.onload = async function() {
-            generateMonthOptions();
-            await loadRecords();
-            updateDashboard();
-        };
-    </script>
+    <!-- ══ 월별 기록 ══ -->
+    <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <p class="sec-label mb-0">월별 근무 기록</p>
+            <select id="monthSelect" onchange="renderMonthView()"
+                class="ipt text-[12px] w-auto py-1.5 px-2 font-semibold" style="max-width:110px"></select>
+        </div>
+        <!-- 개선 2: 달력 테두리 개선 (CSS로 처리) -->
+        <div class="cal-grid mb-4" id="calGrid"></div>
+        <div id="recList" class="space-y-1.5 scroll-y max-h-72"></div>
+    </div>
+
+    <!-- ══ 지급 내역 관리 ══ -->
+    <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <p class="sec-label mb-0">지급 내역 관리</p>
+            <div class="flex gap-2">
+                <button onclick="openAddPay()" class="btn btn-sm-gray">+ 수동 추가</button>
+                <button onclick="openClosing()" class="btn btn-sm-indigo">월 마감</button>
+            </div>
+        </div>
+        <div id="payList" class="space-y-2 scroll-y max-h-80"></div>
+    </div>
+
+</div>
+
+<!-- ══ 기록 수정 모달 ══ -->
+<div id="editModal" class="modal">
+    <div class="modal-box">
+        <div class="modal-handle"></div>
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="text-[16px] font-extrabold text-gray-800">기록 수정</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 mb-1 block">날짜</label>
+                <input type="date" id="editDate" class="ipt">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 mb-1 block">출근</label>
+                    <input type="time" id="editStart" class="ipt">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-gray-500 mb-1 block">퇴근</label>
+                    <input type="time" id="editEnd" class="ipt">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveEdit()" class="btn btn-blue flex-1">저장</button>
+                <button onclick="closeEditModal()" class="btn btn-gray flex-1">취소</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ 지급 추가/수정 모달 ══ -->
+<div id="payModal" class="modal">
+    <div class="modal-box">
+        <div class="modal-handle"></div>
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="text-[16px] font-extrabold text-gray-800" id="payModalTitle">지급 내역 추가</h3>
+            <button onclick="closePayModal()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 mb-1 block">유형</label>
+                <select id="payType" onchange="onPayTypeChange()" class="ipt">
+                    <option value="salary">급여 (주기별)</option>
+                    <option value="bonus">상여 / 기타</option>
+                </select>
+            </div>
+            <div id="periodSection">
+                <label class="text-[11px] font-semibold text-gray-500 mb-1 block">근무 기간</label>
+                <div class="flex items-center gap-2">
+                    <input type="date" id="pStart" class="ipt flex-1">
+                    <span class="text-gray-400 text-sm shrink-0">~</span>
+                    <input type="date" id="pEnd" class="ipt flex-1">
+                </div>
+            </div>
+            <div id="workCntSection">
+                <label class="text-[11px] font-semibold text-gray-500 mb-1 block">근무 일수</label>
+                <input type="number" id="workCnt" class="ipt" placeholder="입력">
+            </div>
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 mb-1 block">지급일</label>
+                <input type="date" id="pPayDate" class="ipt">
+            </div>
+            <!-- 개선 5: 천단위 쉼표 입력 -->
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 mb-1 block">지급액 (원)</label>
+                <input type="text" inputmode="numeric" id="pAmount" class="ipt" placeholder="0"
+                    oninput="formatAmountInput(this)">
+            </div>
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 mb-1 block">메모</label>
+                <input type="text" id="pMemo" class="ipt" placeholder="예: 3월분 급여">
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="savePay()" class="btn btn-blue flex-1">저장</button>
+                <button onclick="closePayModal()" class="btn btn-gray flex-1">취소</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ 월 마감 모달 ══ -->
+<div id="closingModal" class="modal">
+    <div class="modal-box">
+        <div class="modal-handle"></div>
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="text-[16px] font-extrabold text-gray-800">월 마감</h3>
+            <button onclick="closeClosing()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+        </div>
+        <div id="closingBody" class="space-y-3"></div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+// ──────────────────────────────────────────────
+// Firebase 초기화
+// ──────────────────────────────────────────────
+if (typeof firebase === 'undefined') {
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#d63b3b;font-size:15px;text-align:center;padding:20px">Firebase 스크립트 로드 실패<br><small style="color:#888;margin-top:8px;display:block">네트워크 연결을 확인하고 새로고침 해주세요</small></div>';
+    throw new Error('Firebase not loaded');
+}
+const firebaseConfig = {
+    apiKey: "AIzaSyAbYEki5kraulyXH6iHfbMi5LbVmvlVZu0",
+    authDomain: "hong39-9cf7f.firebaseapp.com",
+    projectId: "hong39-9cf7f",
+    storageBucket: "hong39-9cf7f.firebasestorage.app",
+    messagingSenderId: "927700556500",
+    appId: "1:927700556500:web:9fd8f4b2e8c971b8677941"
+};
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let records = [];
+let payments = [];
+let editingRecId = null;
+let editingPayId = null;
+
+// ──────────────────────────────────────────────
+// 일급 기준
+// ──────────────────────────────────────────────
+const RATE_CHANGE_DATE = '2026-02-23';
+const RATE_OLD = 50000;
+const RATE_NEW = 55000;
+
+function getDailyRate(dateStr) {
+    return dateStr >= RATE_CHANGE_DATE ? RATE_NEW : RATE_OLD;
+}
+
+// ──────────────────────────────────────────────
+// 개선 4: 출퇴근 프리셋 (요일별 기본 시간)
+// 월=1 수=3 목=4: 16:30~19:15 / 금=5: 17:00~19:15
+// ──────────────────────────────────────────────
+const PRESETS = {
+    1: { start: '16:30', end: '19:15', label: '월요일 프리셋' },
+    3: { start: '16:30', end: '19:15', label: '수요일 프리셋' },
+    4: { start: '16:30', end: '19:15', label: '목요일 프리셋' },
+    5: { start: '17:00', end: '19:15', label: '금요일 프리셋' },
+};
+
+let presetApplied = false; // 프리셋이 적용된 상태인지 추적
+
+function applyPreset(dateStr) {
+    const dow = new Date(dateStr + 'T00:00:00').getDay();
+    const preset = PRESETS[dow];
+    const badge  = document.getElementById('presetBadge');
+    const badgeTxt = document.getElementById('presetBadgeText');
+
+    if (preset) {
+        document.getElementById('startTimeInput').value = preset.start;
+        document.getElementById('endTimeInput').value   = preset.end;
+        badge.style.display = 'inline-flex';
+        badge.className = 'preset-badge';
+        badgeTxt.textContent = preset.label + ' 적용';
+        presetApplied = true;
+    } else {
+        document.getElementById('startTimeInput').value = '';
+        document.getElementById('endTimeInput').value   = '';
+        badge.style.display = 'none';
+        presetApplied = false;
+    }
+}
+
+function onDateChange() {
+    const dateVal = document.getElementById('dateInput').value;
+    if (dateVal) applyPreset(dateVal);
+}
+
+function onTimeManualEdit() {
+    // 사용자가 직접 수정하면 배지를 "수정됨"으로 변경
+    if (presetApplied) {
+        const badge = document.getElementById('presetBadge');
+        const badgeTxt = document.getElementById('presetBadgeText');
+        badge.className = 'preset-badge modified';
+        badgeTxt.textContent = '시간 수정됨';
+    }
+}
+
+// ──────────────────────────────────────────────
+// 개선 5: 천단위 쉼표 포맷
+// ──────────────────────────────────────────────
+function formatAmountInput(el) {
+    // 숫자만 추출
+    const raw = el.value.replace(/[^0-9]/g, '');
+    if (raw === '') { el.value = ''; return; }
+    el.value = Number(raw).toLocaleString('ko-KR');
+}
+
+function getAmountValue(id) {
+    // 표시용 쉼표 제거 후 숫자 반환
+    return parseInt(document.getElementById(id).value.replace(/[^0-9]/g, '')) || 0;
+}
+
+function setAmountDisplay(id, num) {
+    document.getElementById(id).value = num ? Number(num).toLocaleString('ko-KR') : '';
+}
+
+// ──────────────────────────────────────────────
+// 지급 주기 계산 (매월 14일 ~ 다음달 13일)
+// ──────────────────────────────────────────────
+function getCurrentCycle(ref = new Date()) {
+    const y = ref.getFullYear(), m = ref.getMonth() + 1, d = ref.getDate();
+    const pad = n => String(n).padStart(2, '0');
+    let sy, sm, ey, em;
+    if (d >= 14) {
+        sy = y; sm = m;
+        em = m === 12 ? 1 : m + 1;
+        ey = m === 12 ? y + 1 : y;
+    } else {
+        sm = m === 1 ? 12 : m - 1;
+        sy = m === 1 ? y - 1 : y;
+        em = m; ey = y;
+    }
+    return {
+        start: `${sy}-${pad(sm)}-14`,
+        end:   `${ey}-${pad(em)}-13`,
+        pay:   `${ey}-${pad(em)}-13`
+    };
+}
+
+// ──────────────────────────────────────────────
+// 유틸
+// ──────────────────────────────────────────────
+const loading = () => document.getElementById('loading').classList.add('on');
+const loaded  = () => document.getElementById('loading').classList.remove('on');
+
+function won(n) { return Number(n).toLocaleString('ko-KR') + '원'; }
+
+function formatDate(s) {
+    const d = new Date(s + 'T00:00:00');
+    return `${d.getMonth()+1}/${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})`;
+}
+function md(s) {
+    const [,m,d] = s.split('-');
+    return `${parseInt(m)}/${parseInt(d)}`;
+}
+function dDay(s) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const t = new Date(s + 'T00:00:00');
+    const diff = Math.round((t - today) / 86400000);
+    if (diff === 0) return 'D-Day';
+    return diff > 0 ? `D-${diff}` : `D+${-diff}`;
+}
+function fmtHours(h) {
+    const v = parseFloat(h);
+    if (isNaN(v)) return '0시간';
+    const t = Math.round(v * 60), hh = Math.floor(t/60), mm = t % 60;
+    return mm === 0 ? `${hh}시간` : `${hh}시간 ${mm}분`;
+}
+
+// ──────────────────────────────────────────────
+// 데이터 로드
+// ──────────────────────────────────────────────
+async function loadAll() {
+    loading();
+    let attError = null, payError = null;
+    try {
+        const a = await db.collection('attendance').orderBy('date','desc').get();
+        records = a.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+        attError = e;
+        console.error('[attendance 로드 실패]', e.code, e.message);
+        records = [];
+    }
+    try {
+        const p = await db.collection('payments').orderBy('payDate','desc').get();
+        payments = p.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+        payError = e;
+        console.error('[payments 로드 실패]', e.code, e.message);
+        payments = [];
+    }
+    loaded();
+    if (attError) {
+        const msg = getFirebaseErrMsg(attError);
+        document.getElementById('lastUpdated').textContent = '⚠️ ' + msg;
+        showToast('⚠️ ' + msg, 'red');
+        return;
+    }
+    const last = records[0]?.date;
+    document.getElementById('lastUpdated').textContent = last
+        ? `마지막 기록: ${formatDate(last)}`
+        : '기록 없음';
+    if (payError) console.warn('지급 내역 로드 실패 (무시):', payError.code);
+}
+
+function getFirebaseErrMsg(e) {
+    switch(e.code) {
+        case 'permission-denied': return 'Firestore 보안 규칙이 차단 중입니다. Firebase Console → Firestore → Rules를 확인하세요.';
+        case 'unavailable':       return '네트워크 연결을 확인해주세요.';
+        case 'not-found':         return '프로젝트를 찾을 수 없습니다. Firebase 설정을 확인해주세요.';
+        default:                  return `연결 실패 (${e.code || e.message})`;
+    }
+}
+
+function showToast(msg, color = 'gray') {
+    const colors = { red:'#d63b3b', green:'#0ea875', gray:'#5a6480' };
+    const t = document.createElement('div');
+    t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:${colors[color]||colors.gray};color:white;padding:10px 18px;border-radius:30px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);max-width:90vw;text-align:center;line-height:1.4;`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4500);
+}
+
+// ──────────────────────────────────────────────
+// 전체 새로고침
+// ──────────────────────────────────────────────
+function refreshAll() {
+    buildMonthSelect();
+    updateDashboard();
+    renderMonthView();
+    renderPayList();
+}
+
+// ──────────────────────────────────────────────
+// 월 드랍다운
+// ──────────────────────────────────────────────
+function buildMonthSelect() {
+    const sel = document.getElementById('monthSelect');
+    const prev = sel.value;
+    const monthSet = new Set(records.map(r => r.date.slice(0,7)));
+    const now = new Date();
+    const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    monthSet.add(curYM);
+    const sorted = [...monthSet].sort().reverse();
+    sel.innerHTML = sorted.map(ym => {
+        const [y, m] = ym.split('-');
+        return `<option value="${ym}" ${ym === (prev || curYM) ? 'selected' : ''}>${y}년 ${parseInt(m)}월</option>`;
+    }).join('');
+}
+
+// ──────────────────────────────────────────────
+// 대시보드 + 개선 3: 연간 예상비용 (완료달만)
+// ──────────────────────────────────────────────
+function updateDashboard() {
+    const now = new Date();
+    const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+    // ① 이번 달 출근
+    const thisRec = records.filter(r => r.date.startsWith(curYM));
+    document.getElementById('thisMonthLabel').textContent = `${parseInt(curYM.split('-')[1])}월`;
+    document.getElementById('thisMonthDays').textContent  = thisRec.length;
+
+    // ② 현재 주기
+    const cyc = getCurrentCycle(now);
+    const cycRec = records.filter(r => r.date >= cyc.start && r.date <= cyc.end);
+    const cycAmt = cycRec.reduce((s, r) => s + getDailyRate(r.date), 0);
+    document.getElementById('cycleRange').textContent = `${md(cyc.start)}~${md(cyc.end)}`;
+    document.getElementById('cycleDays').textContent  = `${cycRec.length}일`;
+    document.getElementById('cycleAmt').textContent   = won(cycAmt);
+    document.getElementById('cycleDday').textContent  = `지급 ${dDay(cyc.end)}`;
+
+    // ③ 다음 지급
+    document.getElementById('nextPayDate').textContent = `${parseInt(cyc.end.split('-')[1])}월 ${parseInt(cyc.end.split('-')[2])}일`;
+    document.getElementById('nextPayAmt').textContent  = won(cycAmt);
+
+    // ④ 지급 요약
+    const paidAmt  = payments.reduce((s, p) => s + (p.amount || 0), 0);
+    const totalAmt = records.reduce((s, r) => s + getDailyRate(r.date), 0);
+    document.getElementById('sumPaid').textContent   = won(paidAmt);
+    document.getElementById('sumUnpaid').textContent = won(cycAmt);
+    document.getElementById('sumTotal').textContent  = won(totalAmt);
+
+    // ⑤ 개선 3: 연간 예상 — 완료된 달만 사용
+    const completedRecs = records.filter(r => r.date.slice(0,7) < curYM);
+    const completedMonthSet = new Set(completedRecs.map(r => r.date.slice(0,7)));
+    const completedMonths = completedMonthSet.size;
+
+    if (completedMonths === 0) {
+        // 완료된 달이 없으면 이번 달 데이터로 임시 추정
+        document.getElementById('sumAnnual').textContent   = '데이터 누적 중';
+        document.getElementById('sumAnnualBasis').textContent = '월 마감 후 표시됩니다';
+    } else {
+        const avgDay = completedRecs.length / completedMonths;
+        const annual = Math.round(avgDay * RATE_NEW * 12 / 10000) * 10000;
+        document.getElementById('sumAnnual').textContent = `≈ ${won(annual)}`;
+        document.getElementById('sumAnnualBasis').textContent =
+            `최근 ${completedMonths}개월 평균 ${avgDay.toFixed(1)}일 × 55,000원 × 12`;
+    }
+}
+
+// ──────────────────────────────────────────────
+// 요약 토글
+// ──────────────────────────────────────────────
+function toggleSummary() {
+    document.getElementById('summaryBody').classList.toggle('open');
+    document.getElementById('summaryChevron').classList.toggle('open');
+}
+
+// ──────────────────────────────────────────────
+// 월별 기록 뷰
+// ──────────────────────────────────────────────
+function renderMonthView() {
+    const ym = document.getElementById('monthSelect').value;
+    if (!ym) return;
+    const [y, m] = ym.split('-').map(Number);
+    const monthRec = records.filter(r => r.date.startsWith(ym));
+    renderCal(y, m, monthRec);
+    renderRecList(monthRec);
+}
+
+// 개선 2: 달력 렌더 (CSS border 방식으로 전환)
+function renderCal(year, month, monthRec) {
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+
+    ['일','월','화','수','목','금','토'].forEach((d, i) => {
+        const h = document.createElement('div');
+        h.className = `cal-head ${i===0?'text-red-500':i===6?'text-blue-500':'text-gray-600'}`;
+        h.textContent = d;
+        grid.appendChild(h);
+    });
+
+    const firstDay = new Date(year, month-1, 1).getDay();
+    const lastDate = new Date(year, month, 0).getDate();
+    const attSet   = new Set(monthRec.map(r => r.date));
+
+    for (let i = 0; i < firstDay; i++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day';
+        el.style.background = '#f9fafb';
+        grid.appendChild(el);
+    }
+    for (let d = 1; d <= lastDate; d++) {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dow = new Date(year, month-1, d).getDay();
+        const el  = document.createElement('div');
+        el.className = 'cal-day';
+        if (attSet.has(dateStr)) {
+            const dot = document.createElement('div');
+            dot.className = 'att-dot';
+            dot.textContent = d;
+            el.appendChild(dot);
+        } else {
+            const sp = document.createElement('span');
+            sp.className = `cal-day-num ${dow===0?'text-red-400':dow===6?'text-blue-400':'text-gray-700'}`;
+            sp.textContent = d;
+            el.appendChild(sp);
+        }
+        grid.appendChild(el);
+    }
+    // 마지막 행을 7칸으로 채워 border-bottom이 모든 셀에 균일하게 표시되도록 함
+    const lastDow = new Date(year, month-1, lastDate).getDay();
+    const trailing = lastDow === 6 ? 0 : 6 - lastDow;
+    for (let i = 0; i < trailing; i++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day';
+        el.style.background = '#f9fafb';
+        grid.appendChild(el);
+    }
+}
+
+function renderRecList(monthRec) {
+    const el = document.getElementById('recList');
+    if (!monthRec.length) {
+        el.innerHTML = '<div class="text-center py-8 text-gray-400 text-[13px]">이 달 기록 없음</div>';
+        return;
+    }
+    const sorted = [...monthRec].sort((a,b) => a.date.localeCompare(b.date));
+    el.innerHTML = sorted.map((r, i) => `
+        <div class="flex items-center justify-between px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-blue-50/60 transition">
+            <div class="flex items-center gap-3">
+                <div class="w-6 h-6 rounded-lg bg-indigo-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">${i+1}</div>
+                <div>
+                    <div class="text-[13px] font-bold text-gray-800">${formatDate(r.date)}</div>
+                    <div class="text-[11px] text-gray-400">${r.startTime}~${r.endTime} · ${fmtHours(r.hours)} · <span class="text-indigo-400 font-semibold">${won(getDailyRate(r.date))}</span></div>
+                </div>
+            </div>
+            <div class="flex gap-1 shrink-0">
+                <button onclick="openEditRec('${r.id}')" class="btn btn-sm-blue">수정</button>
+                <button onclick="deleteRec('${r.id}')" class="btn btn-sm-red">삭제</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ──────────────────────────────────────────────
+// 지급 내역 리스트
+// ──────────────────────────────────────────────
+function renderPayList() {
+    const el = document.getElementById('payList');
+    if (!payments.length) {
+        el.innerHTML = `<div class="text-center py-8 text-gray-400 text-[13px]">지급 내역 없음<br><span class="text-[11px]">수동 추가 또는 월 마감으로 등록하세요</span></div>`;
+        return;
+    }
+    const sorted = [...payments].sort((a,b) => b.payDate.localeCompare(a.payDate));
+    el.innerHTML = sorted.map(p => {
+        const isBonus = p.type === 'bonus';
+        const period  = isBonus ? '상여/기타'
+            : (p.periodStart && p.periodEnd ? `${md(p.periodStart)}~${md(p.periodEnd)}` : '');
+        return `
+        <div class="flex items-start justify-between px-3 py-3 rounded-xl bg-gray-50">
+            <div class="flex-1 min-w-0 pr-2">
+                <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <span class="text-[14px] font-extrabold text-gray-800">${won(p.amount)}</span>
+                    <span class="badge ${isBonus ? 'badge-purple' : 'badge-green'}">${isBonus ? '상여' : '급여'}</span>
+                    ${p.workCount ? `<span class="text-[11px] text-gray-400">${p.workCount}일</span>` : ''}
+                </div>
+                <div class="text-[11px] text-gray-400">${period ? period + ' · ' : ''}지급일 ${formatDate(p.payDate)}</div>
+                ${p.memo ? `<div class="text-[11px] text-gray-500 mt-0.5">${p.memo}</div>` : ''}
+            </div>
+            <div class="flex gap-1 shrink-0">
+                <button onclick="openEditPay('${p.id}')" class="btn btn-sm-blue">수정</button>
+                <button onclick="deletePay('${p.id}')" class="btn btn-sm-red">삭제</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ──────────────────────────────────────────────
+// 출퇴근 기록 CRUD
+// ──────────────────────────────────────────────
+async function addRecord() {
+    const date  = document.getElementById('dateInput').value;
+    const start = document.getElementById('startTimeInput').value;
+    const end   = document.getElementById('endTimeInput').value;
+    if (!date || !start || !end) { alert('날짜와 시간을 모두 입력하세요.'); return; }
+    const s = new Date(`${date}T${start}`), e = new Date(`${date}T${end}`);
+    if (e <= s) { alert('퇴근 시간이 출근 시간보다 앞입니다.'); return; }
+    const hours = ((e - s) / 3600000).toFixed(2);
+    loading();
+    try {
+        await db.collection('attendance').add({
+            date, startTime: start, endTime: end, hours,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await loadAll();
+        refreshAll();
+        // 기록 추가 후 오늘 날짜 프리셋 다시 적용
+        const today = new Date().toISOString().slice(0,10);
+        document.getElementById('dateInput').value = today;
+        applyPreset(today);
+        presetApplied = true;
+    } catch(err) {
+        loaded();
+        console.error('[addRecord]', err.code, err.message);
+        alert('저장 실패: ' + getFirebaseErrMsg(err));
+        return;
+    }
+    loaded();
+}
+
+function openEditRec(id) {
+    const r = records.find(r => r.id === id);
+    if (!r) return;
+    editingRecId = id;
+    document.getElementById('editDate').value  = r.date;
+    document.getElementById('editStart').value = r.startTime;
+    document.getElementById('editEnd').value   = r.endTime;
+    document.getElementById('editModal').classList.add('on');
+}
+function closeEditModal() {
+    editingRecId = null;
+    document.getElementById('editModal').classList.remove('on');
+}
+async function saveEdit() {
+    const date  = document.getElementById('editDate').value;
+    const start = document.getElementById('editStart').value;
+    const end   = document.getElementById('editEnd').value;
+    const s = new Date(`${date}T${start}`), e = new Date(`${date}T${end}`);
+    const hours = ((e - s) / 3600000).toFixed(2);
+    loading();
+    try {
+        await db.collection('attendance').doc(editingRecId).update({ date, startTime:start, endTime:end, hours });
+        await loadAll(); refreshAll(); closeEditModal();
+    } catch(err) {
+        loaded();
+        console.error('[saveEdit]', err.code, err.message);
+        alert('수정 실패: ' + getFirebaseErrMsg(err));
+        return;
+    }
+    loaded();
+}
+async function deleteRec(id) {
+    if (!confirm('이 근무 기록을 삭제하시겠습니까?')) return;
+    loading();
+    try {
+        await db.collection('attendance').doc(id).delete();
+        await loadAll(); refreshAll();
+    } catch(err) { console.error(err); } finally { loaded(); }
+}
+
+// ──────────────────────────────────────────────
+// 지급 내역 CRUD
+// ──────────────────────────────────────────────
+function openAddPay() {
+    editingPayId = null;
+    document.getElementById('payModalTitle').textContent = '지급 내역 추가';
+    ['pStart','pEnd','pPayDate','pMemo'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('workCnt').value = '';
+    document.getElementById('pAmount').value = '';
+    document.getElementById('payType').value = 'salary';
+    onPayTypeChange();
+    document.getElementById('payModal').classList.add('on');
+}
+function openEditPay(id) {
+    const p = payments.find(p => p.id === id);
+    if (!p) return;
+    editingPayId = id;
+    document.getElementById('payModalTitle').textContent = '지급 내역 수정';
+    document.getElementById('payType').value   = p.type || 'salary';
+    document.getElementById('pStart').value    = p.periodStart || '';
+    document.getElementById('pEnd').value      = p.periodEnd || '';
+    document.getElementById('workCnt').value   = p.workCount || '';
+    document.getElementById('pPayDate').value  = p.payDate || '';
+    document.getElementById('pMemo').value     = p.memo || '';
+    // 개선 5: 수정 모달 열 때도 쉼표 포맷 적용
+    setAmountDisplay('pAmount', p.amount);
+    onPayTypeChange();
+    document.getElementById('payModal').classList.add('on');
+}
+function closePayModal() {
+    document.getElementById('payModal').classList.remove('on');
+}
+function onPayTypeChange() {
+    const isBonus = document.getElementById('payType').value === 'bonus';
+    document.getElementById('periodSection').style.display  = isBonus ? 'none' : '';
+    document.getElementById('workCntSection').style.display = isBonus ? 'none' : '';
+}
+async function savePay() {
+    const type    = document.getElementById('payType').value;
+    const payDate = document.getElementById('pPayDate').value;
+    // 개선 5: 쉼표 제거 후 숫자 변환
+    const amount  = getAmountValue('pAmount');
+    const memo    = document.getElementById('pMemo').value.trim();
+    if (!payDate || !amount) { alert('지급일과 지급액을 입력하세요.'); return; }
+    const data = { type, payDate, amount, memo, status:'paid' };
+    if (type === 'salary') {
+        data.periodStart = document.getElementById('pStart').value;
+        data.periodEnd   = document.getElementById('pEnd').value;
+        const wc = parseInt(document.getElementById('workCnt').value);
+        data.workCount = isNaN(wc) ? null : wc;
+    }
+    loading();
+    try {
+        if (editingPayId) {
+            await db.collection('payments').doc(editingPayId).update(data);
+        } else {
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection('payments').add(data);
+        }
+        await loadAll(); refreshAll(); closePayModal();
+    } catch(err) {
+        loaded();
+        console.error('[savePay]', err.code, err.message);
+        alert('저장 실패: ' + getFirebaseErrMsg(err));
+        return;
+    }
+    loaded();
+}
+async function deletePay(id) {
+    if (!confirm('이 지급 내역을 삭제하시겠습니까?')) return;
+    loading();
+    try {
+        await db.collection('payments').doc(id).delete();
+        await loadAll(); refreshAll();
+    } catch(err) { console.error(err); } finally { loaded(); }
+}
+
+// ──────────────────────────────────────────────
+// 월 마감
+// ──────────────────────────────────────────────
+function openClosing() {
+    const cyc    = getCurrentCycle(new Date());
+    const cycRec = records.filter(r => r.date >= cyc.start && r.date <= cyc.end);
+    const calcAmt= cycRec.reduce((s, r) => s + getDailyRate(r.date), 0);
+
+    const old50 = cycRec.filter(r => r.date < RATE_CHANGE_DATE).length;
+    const new55 = cycRec.filter(r => r.date >= RATE_CHANGE_DATE).length;
+    const breakdownHtml = (old50 > 0 && new55 > 0)
+        ? `<div class="text-[11px] text-gray-400">(50,000×${old50}일 + 55,000×${new55}일)</div>`
+        : `<div class="text-[11px] text-gray-400">(${getDailyRate(cyc.start).toLocaleString()}원/일 × ${cycRec.length}일)</div>`;
+
+    // 개선 5: 월 마감 지급액도 쉼표 포맷
+    const calcAmtFormatted = Number(calcAmt).toLocaleString('ko-KR');
+
+    document.getElementById('closingBody').innerHTML = `
+        <div class="bg-indigo-50 rounded-2xl p-4 space-y-2">
+            <div class="flex justify-between text-[13px]">
+                <span class="text-gray-500 font-semibold">근무 기간</span>
+                <span class="font-bold text-gray-800">${cyc.start} ~ ${cyc.end}</span>
+            </div>
+            <div class="flex justify-between text-[13px]">
+                <span class="text-gray-500 font-semibold">근무 일수</span>
+                <span class="font-bold text-gray-800">${cycRec.length}일</span>
+            </div>
+            <div class="flex justify-between text-[13px]">
+                <span class="text-gray-500 font-semibold">산출 금액</span>
+                <div class="text-right">
+                    <span class="font-extrabold text-indigo-700">${won(calcAmt)}</span>
+                    ${breakdownHtml}
+                </div>
+            </div>
+        </div>
+        <div>
+            <label class="text-[11px] font-semibold text-gray-500 mb-1 block">지급일 <span class="text-gray-400">(수정 가능)</span></label>
+            <input type="date" id="cPayDate" value="${cyc.pay}" class="ipt">
+        </div>
+        <div>
+            <label class="text-[11px] font-semibold text-gray-500 mb-1 block">지급액 <span class="text-gray-400">(수정 가능)</span></label>
+            <input type="text" inputmode="numeric" id="cAmount" value="${calcAmtFormatted}" class="ipt"
+                oninput="formatAmountInput(this)">
+        </div>
+        <div>
+            <label class="text-[11px] font-semibold text-gray-500 mb-1 block">메모</label>
+            <input type="text" id="cMemo" value="${cyc.end.slice(0,7).replace('-','.')} 급여" class="ipt">
+        </div>
+        <div class="flex gap-2 pt-1">
+            <button onclick="confirmClosing('${cyc.start}','${cyc.end}',${cycRec.length})" class="btn btn-blue flex-1">지급 완료 확정</button>
+            <button onclick="closeClosing()" class="btn btn-gray flex-1">취소</button>
+        </div>`;
+
+    document.getElementById('closingModal').classList.add('on');
+}
+function closeClosing() {
+    document.getElementById('closingModal').classList.remove('on');
+}
+async function confirmClosing(periodStart, periodEnd, workCount) {
+    const payDate = document.getElementById('cPayDate').value;
+    // 개선 5: 쉼표 제거 후 숫자 변환
+    const amount  = getAmountValue('cAmount');
+    const memo    = document.getElementById('cMemo').value.trim();
+    if (!payDate || !amount) { alert('지급일과 지급액을 입력하세요.'); return; }
+    loading();
+    try {
+        await db.collection('payments').add({
+            type: 'salary', periodStart, periodEnd,
+            payDate, workCount, amount, memo,
+            status: 'paid',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await loadAll(); refreshAll(); closeClosing();
+        alert('✅ 지급 완료로 기록되었습니다.');
+    } catch(err) {
+        loaded();
+        console.error('[confirmClosing]', err.code, err.message);
+        alert('저장 실패: ' + getFirebaseErrMsg(err));
+        return;
+    }
+    loaded();
+}
+
+// ──────────────────────────────────────────────
+// 엑셀 내보내기
+// ──────────────────────────────────────────────
+function exportToExcel() {
+    if (!records.length) { alert('내보낼 기록이 없습니다.'); return; }
+    const sorted = [...records].sort((a,b) => a.date.localeCompare(b.date));
+    const data = sorted.map(r => ({
+        '날짜': r.date, '출근': r.startTime, '퇴근': r.endTime,
+        '근무시간': parseFloat(r.hours), '일급': getDailyRate(r.date)
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '근무기록');
+    XLSX.writeFile(wb, `근무기록_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ──────────────────────────────────────────────
+// 초기화 — 개선 4: 프리셋 자동 적용
+// ──────────────────────────────────────────────
+window.onload = async function () {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('dateInput').value = today;
+    // 오늘 요일에 맞는 프리셋 자동 적용
+    applyPreset(today);
+    await loadAll();
+    refreshAll();
+};
+</script>
 </body>
 </html>
-
