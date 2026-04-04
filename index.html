@@ -21,7 +21,7 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* ── 모달 ── */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(15,20,50,0.45); z-index: 1000; align-items: flex-end; justify-content: center; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15,20,50,0.45); z-index: 1000; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
         .modal.on { display: flex; }
         .modal-box {
             background: white; width: 100%; max-width: 480px;
@@ -29,7 +29,11 @@
             padding: 24px 20px 32px;
             max-height: 92vh; overflow-y: auto;
             animation: slideUp .22s ease;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
         }
+        /* 모달 열릴 때 body 스크롤 잠금 (모던 브라우저 / iOS Safari 15.4+) */
+        body:has(.modal.on) { overflow: hidden; }
         @keyframes slideUp { from { transform: translateY(30px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
         @media (min-width: 600px) {
             .modal { align-items: center; }
@@ -37,9 +41,7 @@
         }
         .modal-handle { width: 40px; height: 4px; background: #e2e6f0; border-radius: 4px; margin: 0 auto 20px; }
 
-        /* ────────────────────────────────────────
-           개선 2: 달력 테두리 강화
-        ──────────────────────────────────────── */
+        /* ── 달력 ── */
         .cal-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -67,7 +69,6 @@
             border-bottom: 1px solid #dde1f0;
         }
         .cal-day:nth-child(7n) { border-right: none; }
-        /* 마지막 행 테두리는 trailing 빈셀로 채워서 처리 — nth-last-child 미사용 */
         .att-dot {
             width: 32px; height: 32px; border-radius: 50%;
             background: #4055d8; color: white;
@@ -75,7 +76,41 @@
             font-size: 13px; font-weight: 800;
             box-shadow: 0 2px 8px rgba(64,85,216,.4);
         }
+        /* v2.2: 지급 완료 출근일 — 초록 */
+        .att-dot-paid {
+            background: #0ea875;
+            box-shadow: 0 2px 8px rgba(14,168,117,.4);
+        }
         .cal-day-num { font-size: 13px; font-weight: 500; }
+
+        /* ── v2.2: 공유 달력 ── */
+        .share-cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            border: 1.5px solid #c8cde0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .share-cal-head {
+            background: #eef0fb;
+            font-weight: 800;
+            font-size: 11px;
+            padding: 7px 0;
+            text-align: center;
+            border-right: 1px solid #d4d8ea;
+            border-bottom: 1.5px solid #c8cde0;
+        }
+        .share-cal-head:last-child { border-right: none; }
+        .share-cal-cell {
+            background: white;
+            min-height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #dde1f0;
+            border-bottom: 1px solid #dde1f0;
+        }
+        .share-cal-cell:nth-child(7n) { border-right: none; }
 
         /* ── 접기/펼치기 ── */
         .collapse-body { overflow: hidden; transition: max-height .3s cubic-bezier(.4,0,.2,1); max-height: 0; }
@@ -99,25 +134,27 @@
         .btn-blue { background: #4055d8; color: white; padding: 11px 20px; font-size: 14px; }
         .btn-blue:hover { background: #3346c8; }
         .btn-gray { background: #f0f2f8; color: #5a6480; padding: 11px 20px; font-size: 14px; }
-        .btn-sm-blue { background: #eef0fb; color: #4055d8; padding: 5px 11px; font-size: 12px; border-radius: 8px; }
-        .btn-sm-red { background: #fef0f0; color: #d63b3b; padding: 5px 11px; font-size: 12px; border-radius: 8px; }
         .btn-sm-gray { background: #f0f2f8; color: #5a6480; padding: 6px 14px; font-size: 12px; border-radius: 9px; }
         .btn-sm-indigo { background: #4055d8; color: white; padding: 6px 14px; font-size: 12px; border-radius: 9px; }
+        /* ── 아이콘 버튼 (수정/삭제) ── */
+        .btn-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .btn-icon-blue { background: #eef0fb; color: #4055d8; }
+        .btn-icon-red  { background: #fef0f0; color: #d63b3b; }
 
-        /* ────────────────────────────────────────
-           개선 1: 대시보드 stat 카드 가변 글씨
-        ──────────────────────────────────────── */
-        .stat { border-radius: 16px; padding: clamp(10px, 3vw, 15px) clamp(8px, 2.5vw, 14px); }
+        /* ── 대시보드 stat 카드 ── */
+        .stat {
+            border-radius: 16px;
+            padding: clamp(10px, 3vw, 15px) clamp(8px, 2.5vw, 14px);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center;
+        }
         .stat-label  { font-size: clamp(9px, 2.2vw, 11px); font-weight: 700; color: rgba(255,255,255,0.75); margin-bottom: 4px; }
-        .stat-main   { font-size: clamp(20px, 6vw, 30px); font-weight: 800; color: white; line-height: 1; }
-        .stat-main-md { font-size: clamp(15px, 4.2vw, 20px); font-weight: 800; color: white; line-height: 1.1; }
-        .stat-main-sm { font-size: clamp(12px, 3.2vw, 15px); font-weight: 800; color: white; line-height: 1.2; }
+        .stat-main   { font-size: clamp(15px, 4vw, 18px); font-weight: 800; color: white; line-height: 1.2; }
         .stat-sub    { font-size: clamp(9px, 2.2vw, 11px); color: rgba(255,255,255,0.8); margin-top: 3px; }
         .stat-sub-dim { font-size: clamp(8px, 2vw, 10px); color: rgba(255,255,255,0.55); margin-top: 2px; }
 
-        /* ────────────────────────────────────────
-           개선 4: 프리셋 배지
-        ──────────────────────────────────────── */
+        /* ── 프리셋 배지 ── */
         .preset-badge {
             display: inline-flex; align-items: center; gap: 4px;
             background: #eef9f4; color: #0ea875;
@@ -137,8 +174,9 @@
 
         /* ── 배지 ── */
         .badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
-        .badge-green { background: #d1fadf; color: #1a7f4b; }
+        .badge-green  { background: #d1fadf; color: #1a7f4b; }
         .badge-purple { background: #ede9fe; color: #7c3aed; }
+        .badge-blue   { background: #eef0fb; color: #4055d8; }
 
         /* ── 구분선 ── */
         .divider { height: 1px; background: #f0f2f8; margin: 10px 0; }
@@ -160,7 +198,6 @@
     <div class="flex items-center justify-between px-1">
         <div>
             <h1 class="text-[20px] font-extrabold text-gray-900 tracking-tight">돌봄 근무기록</h1>
-            <p class="text-xs text-gray-400 mt-0.5" id="lastUpdated">불러오는 중…</p>
         </div>
         <button onclick="exportToExcel()" title="엑셀 다운로드"
             class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition flex items-center justify-center">
@@ -174,8 +211,10 @@
     <!-- ══ 출퇴근 입력 ══ -->
     <div class="card p-4">
         <div class="flex items-center justify-between mb-2">
-            <p class="sec-label mb-0">출퇴근 기록 입력</p>
-            <!-- 개선 4: 프리셋 배지 -->
+            <div class="flex items-center gap-2">
+                <p class="sec-label mb-0">출퇴근 기록 입력</p>
+                <p class="text-[11px] text-gray-400 mb-0" id="lastUpdated">불러오는 중…</p>
+            </div>
             <span id="presetBadge" class="preset-badge" style="display:none">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -203,26 +242,21 @@
     <!-- ══ 대시보드 ══ -->
     <div class="card p-4">
         <p class="sec-label">근무 현황</p>
-
-        <!-- 개선 1: 가변 글씨 대시보드 카드 -->
         <div class="grid grid-cols-3 gap-2 mb-4">
-            <!-- 이번 달 출근 -->
             <div class="stat" style="background: linear-gradient(135deg,#4055d8 0%,#5a78f4 100%);">
                 <div class="stat-label" id="thisMonthLabel">이번 달</div>
                 <div class="stat-main" id="thisMonthDays">0</div>
                 <div class="stat-sub">일 출근</div>
             </div>
-            <!-- 현재 주기 -->
             <div class="stat" style="background: linear-gradient(135deg,#7c3aed 0%,#a78bfa 100%);">
                 <div class="stat-label" id="cycleRange">현재 주기</div>
-                <div class="stat-main-md" id="cycleDays">0일</div>
+                <div class="stat-main" id="cycleDays">0일</div>
                 <div class="stat-sub" id="cycleAmt">0원</div>
                 <div class="stat-sub-dim" id="cycleDday"></div>
             </div>
-            <!-- 다음 지급 -->
             <div class="stat" style="background: linear-gradient(135deg,#0ea875 0%,#34d39a 100%);">
                 <div class="stat-label">다음 지급</div>
-                <div class="stat-main-sm" id="nextPayDate">-</div>
+                <div class="stat-main" id="nextPayDate">-</div>
                 <div class="stat-sub" id="nextPayAmt">-</div>
             </div>
         </div>
@@ -245,6 +279,7 @@
                         <span class="text-[13px] font-bold text-gray-800" id="sumPaid">-</span>
                     </div>
                     <div class="flex justify-between items-center">
+                        <!-- v2.2: 미지급금 = 총 발생액 - 지급 완료액 -->
                         <span class="text-[12px] text-gray-500">현재 미지급</span>
                         <span class="text-[13px] font-bold text-amber-500" id="sumUnpaid">-</span>
                     </div>
@@ -253,7 +288,6 @@
                         <span class="text-[12px] text-gray-500">총 발생액</span>
                         <span class="text-[13px] font-bold text-gray-800" id="sumTotal">-</span>
                     </div>
-                    <!-- 개선 3: 연간 예상비용 + 근거 표시 -->
                     <div class="flex justify-between items-start">
                         <span class="text-[12px] text-gray-500">연간 예상 비용</span>
                         <div class="text-right">
@@ -270,11 +304,30 @@
     <div class="card p-4">
         <div class="flex items-center justify-between mb-3">
             <p class="sec-label mb-0">월별 근무 기록</p>
-            <select id="monthSelect" onchange="renderMonthView()"
-                class="ipt text-[12px] w-auto py-1.5 px-2 font-semibold" style="max-width:110px"></select>
+            <div class="flex items-center gap-2">
+                <!-- v2.2: 공유 버튼 -->
+                <button onclick="openShareView()" title="현재 주기 공유 뷰"
+                    class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-100 transition flex items-center justify-center text-[15px]">🔗</button>
+                <select id="monthSelect" onchange="renderMonthView()"
+                    class="ipt text-[12px] w-auto py-1.5 px-2 font-semibold" style="max-width:110px"></select>
+            </div>
         </div>
-        <!-- 개선 2: 달력 테두리 개선 (CSS로 처리) -->
-        <div class="cal-grid mb-4" id="calGrid"></div>
+
+        <!-- v2.2: 월별 요약 바 (이번 달 이외 선택 시 표시) -->
+        <div id="monthSummaryBar" style="display:none"></div>
+
+        <div class="cal-grid mb-2" id="calGrid"></div>
+
+        <!-- v2.2: 달력 범례 -->
+        <div class="flex gap-4 text-[11px] text-gray-400 mb-3 px-1">
+            <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full inline-block" style="background:#0ea875"></span>지급완료
+            </span>
+            <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full inline-block" style="background:#4055d8"></span>지급예정
+            </span>
+        </div>
+
         <div id="recList" class="space-y-1.5 scroll-y max-h-72"></div>
     </div>
 
@@ -355,7 +408,6 @@
                 <label class="text-[11px] font-semibold text-gray-500 mb-1 block">지급일</label>
                 <input type="date" id="pPayDate" class="ipt">
             </div>
-            <!-- 개선 5: 천단위 쉼표 입력 -->
             <div>
                 <label class="text-[11px] font-semibold text-gray-500 mb-1 block">지급액 (원)</label>
                 <input type="text" inputmode="numeric" id="pAmount" class="ipt" placeholder="0"
@@ -385,6 +437,18 @@
     </div>
 </div>
 
+<!-- ══ v2.2: 공유 주기 뷰 모달 ══ -->
+<div id="shareModal" class="modal">
+    <div class="modal-box">
+        <div class="modal-handle"></div>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-[16px] font-extrabold text-gray-800">현재 지급 주기</h3>
+            <button onclick="closeShareView()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+        </div>
+        <div id="shareBody"></div>
+    </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -407,7 +471,7 @@ const firebaseConfig = {
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let records = [];
+let records  = [];
 let payments = [];
 let editingRecId = null;
 let editingPayId = null;
@@ -424,7 +488,7 @@ function getDailyRate(dateStr) {
 }
 
 // ──────────────────────────────────────────────
-// 개선 4: 출퇴근 프리셋 (요일별 기본 시간)
+// 출퇴근 프리셋 (요일별 기본 시간)
 // 월=1 수=3 목=4: 16:30~19:15 / 금=5: 17:00~19:15
 // ──────────────────────────────────────────────
 const PRESETS = {
@@ -434,10 +498,10 @@ const PRESETS = {
     5: { start: '17:00', end: '19:15', label: '금요일 프리셋' },
 };
 
-let presetApplied = false; // 프리셋이 적용된 상태인지 추적
+let presetApplied = false;
 
 function applyPreset(dateStr) {
-    const dow = new Date(dateStr + 'T00:00:00').getDay();
+    const dow    = new Date(dateStr + 'T00:00:00').getDay();
     const preset = PRESETS[dow];
     const badge  = document.getElementById('presetBadge');
     const badgeTxt = document.getElementById('presetBadgeText');
@@ -463,27 +527,24 @@ function onDateChange() {
 }
 
 function onTimeManualEdit() {
-    // 사용자가 직접 수정하면 배지를 "수정됨"으로 변경
     if (presetApplied) {
-        const badge = document.getElementById('presetBadge');
+        const badge    = document.getElementById('presetBadge');
         const badgeTxt = document.getElementById('presetBadgeText');
-        badge.className = 'preset-badge modified';
+        badge.className  = 'preset-badge modified';
         badgeTxt.textContent = '시간 수정됨';
     }
 }
 
 // ──────────────────────────────────────────────
-// 개선 5: 천단위 쉼표 포맷
+// 천단위 쉼표 포맷
 // ──────────────────────────────────────────────
 function formatAmountInput(el) {
-    // 숫자만 추출
     const raw = el.value.replace(/[^0-9]/g, '');
     if (raw === '') { el.value = ''; return; }
     el.value = Number(raw).toLocaleString('ko-KR');
 }
 
 function getAmountValue(id) {
-    // 표시용 쉼표 제거 후 숫자 반환
     return parseInt(document.getElementById(id).value.replace(/[^0-9]/g, '')) || 0;
 }
 
@@ -545,7 +606,7 @@ function fmtHours(h) {
 }
 
 // ──────────────────────────────────────────────
-// 데이터 로드
+// 데이터 로드  ※ 절대 수정 금지 (스피너 무한 회전 방지)
 // ──────────────────────────────────────────────
 async function loadAll() {
     loading();
@@ -612,10 +673,10 @@ function refreshAll() {
 // 월 드랍다운
 // ──────────────────────────────────────────────
 function buildMonthSelect() {
-    const sel = document.getElementById('monthSelect');
+    const sel  = document.getElementById('monthSelect');
     const prev = sel.value;
     const monthSet = new Set(records.map(r => r.date.slice(0,7)));
-    const now = new Date();
+    const now  = new Date();
     const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     monthSet.add(curYM);
     const sorted = [...monthSet].sort().reverse();
@@ -626,10 +687,10 @@ function buildMonthSelect() {
 }
 
 // ──────────────────────────────────────────────
-// 대시보드 + 개선 3: 연간 예상비용 (완료달만)
+// 대시보드
 // ──────────────────────────────────────────────
 function updateDashboard() {
-    const now = new Date();
+    const now   = new Date();
     const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
     // ① 이번 달 출근
@@ -638,7 +699,7 @@ function updateDashboard() {
     document.getElementById('thisMonthDays').textContent  = thisRec.length;
 
     // ② 현재 주기
-    const cyc = getCurrentCycle(now);
+    const cyc    = getCurrentCycle(now);
     const cycRec = records.filter(r => r.date >= cyc.start && r.date <= cyc.end);
     const cycAmt = cycRec.reduce((s, r) => s + getDailyRate(r.date), 0);
     document.getElementById('cycleRange').textContent = `${md(cyc.start)}~${md(cyc.end)}`;
@@ -653,23 +714,24 @@ function updateDashboard() {
     // ④ 지급 요약
     const paidAmt  = payments.reduce((s, p) => s + (p.amount || 0), 0);
     const totalAmt = records.reduce((s, r) => s + getDailyRate(r.date), 0);
+    // v2.2 수정: 미지급금 = 총 발생액 - 지급 완료액 (음수 방지)
+    const unpaidAmt = Math.max(0, totalAmt - paidAmt);
     document.getElementById('sumPaid').textContent   = won(paidAmt);
-    document.getElementById('sumUnpaid').textContent = won(cycAmt);
+    document.getElementById('sumUnpaid').textContent = won(unpaidAmt);
     document.getElementById('sumTotal').textContent  = won(totalAmt);
 
-    // ⑤ 개선 3: 연간 예상 — 완료된 달만 사용
-    const completedRecs = records.filter(r => r.date.slice(0,7) < curYM);
-    const completedMonthSet = new Set(completedRecs.map(r => r.date.slice(0,7)));
-    const completedMonths = completedMonthSet.size;
+    // ⑤ 연간 예상 — 완료된 달만 사용
+    const completedRecs      = records.filter(r => r.date.slice(0,7) < curYM);
+    const completedMonthSet  = new Set(completedRecs.map(r => r.date.slice(0,7)));
+    const completedMonths    = completedMonthSet.size;
 
     if (completedMonths === 0) {
-        // 완료된 달이 없으면 이번 달 데이터로 임시 추정
-        document.getElementById('sumAnnual').textContent   = '데이터 누적 중';
+        document.getElementById('sumAnnual').textContent      = '데이터 누적 중';
         document.getElementById('sumAnnualBasis').textContent = '월 마감 후 표시됩니다';
     } else {
         const avgDay = completedRecs.length / completedMonths;
         const annual = Math.round(avgDay * RATE_NEW * 12 / 10000) * 10000;
-        document.getElementById('sumAnnual').textContent = `≈ ${won(annual)}`;
+        document.getElementById('sumAnnual').textContent      = `≈ ${won(annual)}`;
         document.getElementById('sumAnnualBasis').textContent =
             `최근 ${completedMonths}개월 평균 ${avgDay.toFixed(1)}일 × 55,000원 × 12`;
     }
@@ -691,13 +753,77 @@ function renderMonthView() {
     if (!ym) return;
     const [y, m] = ym.split('-').map(Number);
     const monthRec = records.filter(r => r.date.startsWith(ym));
+    renderMonthSummaryBar(ym, monthRec);   // v2.2
     renderCal(y, m, monthRec);
     renderRecList(monthRec);
 }
 
-// 개선 2: 달력 렌더 (CSS border 방식으로 전환)
+// ──────────────────────────────────────────────
+// v2.2: 달력 위 월별 요약 바 (이번 달 이외 선택 시)
+// ──────────────────────────────────────────────
+function renderMonthSummaryBar(ym, monthRec) {
+    const bar   = document.getElementById('monthSummaryBar');
+    const now   = new Date();
+    const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+    if (ym === curYM) { bar.style.display = 'none'; return; }
+
+    const [y, m] = ym.split('-').map(Number);
+    const totalAmt = monthRec.reduce((s, r) => s + getDailyRate(r.date), 0);
+
+    // 실제 payments 데이터에서 해당 월 근무일을 포함하는 지급 기록 검색
+    const matchedPayment = payments.find(p => {
+        if (!p.periodStart || !p.periodEnd) return false;
+        return monthRec.some(r => r.date >= p.periodStart && r.date <= p.periodEnd);
+    });
+
+    let cycLabel, isPaid;
+    if (matchedPayment) {
+        cycLabel = `${md(matchedPayment.periodStart)}~${md(matchedPayment.periodEnd)}`;
+        isPaid = true;
+    } else {
+        const cyc = getCurrentCycle(new Date(y, m - 1, 1));
+        cycLabel = `${md(cyc.start)}~${md(cyc.end)}`;
+        isPaid = false;
+    }
+
+    bar.style.display = '';
+    bar.innerHTML = `
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] bg-indigo-50 rounded-xl px-4 py-2.5 mb-3">
+            <span class="font-extrabold text-indigo-700">${y}년 ${m}월 근무</span>
+            <span class="text-gray-500">출근 <span class="font-bold text-gray-800">${monthRec.length}일</span></span>
+            <span class="font-bold text-indigo-600">${won(totalAmt)}</span>
+            <span class="text-gray-400 text-[11px]">${isPaid ? '✓ 지급완료 ' : ''}${cycLabel}</span>
+        </div>`;
+}
+
+// ──────────────────────────────────────────────
+// v2.2: 지급 완료된 날짜 집합 반환
+//       payments.periodStart ~ periodEnd 범위 전체를 Set으로
+// ──────────────────────────────────────────────
+function getPaidSet() {
+    const paidDates = new Set();
+    // toISOString()은 UTC 기준이므로 한국(UTC+9)에서 하루 밀림 → 로컬 날짜로 직접 포맷
+    const localStr = d =>
+        `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    payments.forEach(p => {
+        if (!p.periodStart || !p.periodEnd) return;
+        let cur = new Date(p.periodStart + 'T00:00:00');
+        const end = new Date(p.periodEnd + 'T00:00:00');
+        while (cur <= end) {
+            paidDates.add(localStr(cur));
+            cur.setDate(cur.getDate() + 1);
+        }
+    });
+    return paidDates;
+}
+
+// ──────────────────────────────────────────────
+// 달력 렌더 (v2.2: 지급완료=초록 / 예정=파랑)
+// ──────────────────────────────────────────────
 function renderCal(year, month, monthRec) {
-    const grid = document.getElementById('calGrid');
+    const grid    = document.getElementById('calGrid');
+    const paidSet = getPaidSet(); // v2.2
     grid.innerHTML = '';
 
     ['일','월','화','수','목','금','토'].forEach((d, i) => {
@@ -723,8 +849,9 @@ function renderCal(year, month, monthRec) {
         const el  = document.createElement('div');
         el.className = 'cal-day';
         if (attSet.has(dateStr)) {
+            const isPaid = paidSet.has(dateStr); // v2.2
             const dot = document.createElement('div');
-            dot.className = 'att-dot';
+            dot.className = 'att-dot' + (isPaid ? ' att-dot-paid' : '');
             dot.textContent = d;
             el.appendChild(dot);
         } else {
@@ -735,8 +862,8 @@ function renderCal(year, month, monthRec) {
         }
         grid.appendChild(el);
     }
-    // 마지막 행을 7칸으로 채워 border-bottom이 모든 셀에 균일하게 표시되도록 함
-    const lastDow = new Date(year, month-1, lastDate).getDay();
+    // 마지막 행 trailing 셀
+    const lastDow  = new Date(year, month-1, lastDate).getDay();
     const trailing = lastDow === 6 ? 0 : 6 - lastDow;
     for (let i = 0; i < trailing; i++) {
         const el = document.createElement('div');
@@ -746,28 +873,44 @@ function renderCal(year, month, monthRec) {
     }
 }
 
+// ──────────────────────────────────────────────
+// 근무 기록 목록 (v2.2: 지급완료/예정 배지 + 배경색)
+// ──────────────────────────────────────────────
 function renderRecList(monthRec) {
     const el = document.getElementById('recList');
     if (!monthRec.length) {
         el.innerHTML = '<div class="text-center py-8 text-gray-400 text-[13px]">이 달 기록 없음</div>';
         return;
     }
-    const sorted = [...monthRec].sort((a,b) => a.date.localeCompare(b.date));
-    el.innerHTML = sorted.map((r, i) => `
-        <div class="flex items-center justify-between px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-blue-50/60 transition">
+    const paidSet = getPaidSet(); // v2.2
+    const sorted  = [...monthRec].sort((a,b) => a.date.localeCompare(b.date));
+    el.innerHTML  = sorted.map((r, i) => {
+        const isPaid = paidSet.has(r.date);
+        const statusBadge = isPaid
+            ? `<span class="badge badge-green">지급완료</span>`
+            : `<span class="badge badge-blue">지급예정</span>`;
+        return `
+        <div class="flex items-center justify-between px-3 py-2.5 rounded-xl ${isPaid ? 'bg-emerald-50/60' : 'bg-gray-50'} hover:bg-blue-50/60 transition">
             <div class="flex items-center gap-3">
-                <div class="w-6 h-6 rounded-lg bg-indigo-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">${i+1}</div>
+                <div class="w-6 h-6 rounded-lg ${isPaid ? 'bg-emerald-500' : 'bg-indigo-600'} text-white text-[11px] font-bold flex items-center justify-center shrink-0">${i+1}</div>
                 <div>
-                    <div class="text-[13px] font-bold text-gray-800">${formatDate(r.date)}</div>
-                    <div class="text-[11px] text-gray-400">${r.startTime}~${r.endTime} · ${fmtHours(r.hours)} · <span class="text-indigo-400 font-semibold">${won(getDailyRate(r.date))}</span></div>
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[13px] font-bold text-gray-800">${formatDate(r.date)}</span>
+                        ${statusBadge}
+                    </div>
+                    <div class="text-[11px] text-gray-400">${r.startTime}~${r.endTime} · ${fmtHours(r.hours)} · <span class="${isPaid ? 'text-emerald-500' : 'text-indigo-400'} font-semibold">${won(getDailyRate(r.date))}</span></div>
                 </div>
             </div>
             <div class="flex gap-1 shrink-0">
-                <button onclick="openEditRec('${r.id}')" class="btn btn-sm-blue">수정</button>
-                <button onclick="deleteRec('${r.id}')" class="btn btn-sm-red">삭제</button>
+                <button onclick="openEditRec('${r.id}')" class="btn btn-icon btn-icon-blue" title="수정">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.3"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button onclick="deleteRec('${r.id}')" class="btn btn-icon btn-icon-red" title="삭제">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                </button>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 // ──────────────────────────────────────────────
@@ -796,8 +939,12 @@ function renderPayList() {
                 ${p.memo ? `<div class="text-[11px] text-gray-500 mt-0.5">${p.memo}</div>` : ''}
             </div>
             <div class="flex gap-1 shrink-0">
-                <button onclick="openEditPay('${p.id}')" class="btn btn-sm-blue">수정</button>
-                <button onclick="deletePay('${p.id}')" class="btn btn-sm-red">삭제</button>
+                <button onclick="openEditPay('${p.id}')" class="btn btn-icon btn-icon-blue" title="수정">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.3"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button onclick="deletePay('${p.id}')" class="btn btn-icon btn-icon-red" title="삭제">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                </button>
             </div>
         </div>`;
     }).join('');
@@ -811,6 +958,11 @@ async function addRecord() {
     const start = document.getElementById('startTimeInput').value;
     const end   = document.getElementById('endTimeInput').value;
     if (!date || !start || !end) { alert('날짜와 시간을 모두 입력하세요.'); return; }
+    // 중복 날짜 방지
+    if (records.some(r => r.date === date)) {
+        showToast(`${formatDate(date)} 기록이 이미 존재합니다.`, 'red');
+        return;
+    }
     const s = new Date(`${date}T${start}`), e = new Date(`${date}T${end}`);
     if (e <= s) { alert('퇴근 시간이 출근 시간보다 앞입니다.'); return; }
     const hours = ((e - s) / 3600000).toFixed(2);
@@ -822,18 +974,14 @@ async function addRecord() {
         });
         await loadAll();
         refreshAll();
-        // 기록 추가 후 오늘 날짜 프리셋 다시 적용
         const today = new Date().toISOString().slice(0,10);
         document.getElementById('dateInput').value = today;
         applyPreset(today);
-        presetApplied = true;
     } catch(err) {
         loaded();
         console.error('[addRecord]', err.code, err.message);
         alert('저장 실패: ' + getFirebaseErrMsg(err));
-        return;
     }
-    loaded();
 }
 
 function openEditRec(id) {
@@ -863,9 +1011,7 @@ async function saveEdit() {
         loaded();
         console.error('[saveEdit]', err.code, err.message);
         alert('수정 실패: ' + getFirebaseErrMsg(err));
-        return;
     }
-    loaded();
 }
 async function deleteRec(id) {
     if (!confirm('이 근무 기록을 삭제하시겠습니까?')) return;
@@ -883,9 +1029,9 @@ function openAddPay() {
     editingPayId = null;
     document.getElementById('payModalTitle').textContent = '지급 내역 추가';
     ['pStart','pEnd','pPayDate','pMemo'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('workCnt').value = '';
-    document.getElementById('pAmount').value = '';
-    document.getElementById('payType').value = 'salary';
+    document.getElementById('workCnt').value  = '';
+    document.getElementById('pAmount').value  = '';
+    document.getElementById('payType').value  = 'salary';
     onPayTypeChange();
     document.getElementById('payModal').classList.add('on');
 }
@@ -894,13 +1040,12 @@ function openEditPay(id) {
     if (!p) return;
     editingPayId = id;
     document.getElementById('payModalTitle').textContent = '지급 내역 수정';
-    document.getElementById('payType').value   = p.type || 'salary';
-    document.getElementById('pStart').value    = p.periodStart || '';
-    document.getElementById('pEnd').value      = p.periodEnd || '';
-    document.getElementById('workCnt').value   = p.workCount || '';
-    document.getElementById('pPayDate').value  = p.payDate || '';
-    document.getElementById('pMemo').value     = p.memo || '';
-    // 개선 5: 수정 모달 열 때도 쉼표 포맷 적용
+    document.getElementById('payType').value  = p.type || 'salary';
+    document.getElementById('pStart').value   = p.periodStart || '';
+    document.getElementById('pEnd').value     = p.periodEnd || '';
+    document.getElementById('workCnt').value  = p.workCount || '';
+    document.getElementById('pPayDate').value = p.payDate || '';
+    document.getElementById('pMemo').value    = p.memo || '';
     setAmountDisplay('pAmount', p.amount);
     onPayTypeChange();
     document.getElementById('payModal').classList.add('on');
@@ -916,7 +1061,6 @@ function onPayTypeChange() {
 async function savePay() {
     const type    = document.getElementById('payType').value;
     const payDate = document.getElementById('pPayDate').value;
-    // 개선 5: 쉼표 제거 후 숫자 변환
     const amount  = getAmountValue('pAmount');
     const memo    = document.getElementById('pMemo').value.trim();
     if (!payDate || !amount) { alert('지급일과 지급액을 입력하세요.'); return; }
@@ -940,9 +1084,7 @@ async function savePay() {
         loaded();
         console.error('[savePay]', err.code, err.message);
         alert('저장 실패: ' + getFirebaseErrMsg(err));
-        return;
     }
-    loaded();
 }
 async function deletePay(id) {
     if (!confirm('이 지급 내역을 삭제하시겠습니까?')) return;
@@ -957,9 +1099,9 @@ async function deletePay(id) {
 // 월 마감
 // ──────────────────────────────────────────────
 function openClosing() {
-    const cyc    = getCurrentCycle(new Date());
-    const cycRec = records.filter(r => r.date >= cyc.start && r.date <= cyc.end);
-    const calcAmt= cycRec.reduce((s, r) => s + getDailyRate(r.date), 0);
+    const cyc     = getCurrentCycle(new Date());
+    const cycRec  = records.filter(r => r.date >= cyc.start && r.date <= cyc.end);
+    const calcAmt = cycRec.reduce((s, r) => s + getDailyRate(r.date), 0);
 
     const old50 = cycRec.filter(r => r.date < RATE_CHANGE_DATE).length;
     const new55 = cycRec.filter(r => r.date >= RATE_CHANGE_DATE).length;
@@ -967,7 +1109,6 @@ function openClosing() {
         ? `<div class="text-[11px] text-gray-400">(50,000×${old50}일 + 55,000×${new55}일)</div>`
         : `<div class="text-[11px] text-gray-400">(${getDailyRate(cyc.start).toLocaleString()}원/일 × ${cycRec.length}일)</div>`;
 
-    // 개선 5: 월 마감 지급액도 쉼표 포맷
     const calcAmtFormatted = Number(calcAmt).toLocaleString('ko-KR');
 
     document.getElementById('closingBody').innerHTML = `
@@ -1013,7 +1154,6 @@ function closeClosing() {
 }
 async function confirmClosing(periodStart, periodEnd, workCount) {
     const payDate = document.getElementById('cPayDate').value;
-    // 개선 5: 쉼표 제거 후 숫자 변환
     const amount  = getAmountValue('cAmount');
     const memo    = document.getElementById('cMemo').value.trim();
     if (!payDate || !amount) { alert('지급일과 지급액을 입력하세요.'); return; }
@@ -1031,34 +1171,151 @@ async function confirmClosing(periodStart, periodEnd, workCount) {
         loaded();
         console.error('[confirmClosing]', err.code, err.message);
         alert('저장 실패: ' + getFirebaseErrMsg(err));
-        return;
     }
-    loaded();
 }
 
 // ──────────────────────────────────────────────
-// 엑셀 내보내기
+// v2.2: 엑셀 내보내기 (근무기록 + 지급내역 시트)
 // ──────────────────────────────────────────────
 function exportToExcel() {
     if (!records.length) { alert('내보낼 기록이 없습니다.'); return; }
-    const sorted = [...records].sort((a,b) => a.date.localeCompare(b.date));
-    const data = sorted.map(r => ({
-        '날짜': r.date, '출근': r.startTime, '퇴근': r.endTime,
-        '근무시간': parseFloat(r.hours), '일급': getDailyRate(r.date)
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '근무기록');
+
+    // 시트1: 근무기록
+    const sortedRec = [...records].sort((a,b) => a.date.localeCompare(b.date));
+    const attData   = sortedRec.map(r => ({
+        '날짜':    r.date,
+        '출근':    r.startTime,
+        '퇴근':    r.endTime,
+        '근무시간': parseFloat(r.hours),
+        '일급':    getDailyRate(r.date)
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(attData), '근무기록');
+
+    // 시트2: 지급내역
+    if (payments.length) {
+        const sortedPay = [...payments].sort((a,b) => a.payDate.localeCompare(b.payDate));
+        const payData   = sortedPay.map(p => ({
+            '지급일':       p.payDate,
+            '유형':        p.type === 'bonus' ? '상여/기타' : '급여',
+            '근무기간(시작)': p.periodStart || '',
+            '근무기간(종료)': p.periodEnd   || '',
+            '근무일수':      p.workCount   ?? '',
+            '지급액':       p.amount,
+            '메모':        p.memo || ''
+        }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(payData), '지급내역');
+    }
+
     XLSX.writeFile(wb, `근무기록_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 // ──────────────────────────────────────────────
-// 초기화 — 개선 4: 프리셋 자동 적용
+// v2.2: 공유 달력 HTML 생성 (한 달 분량)
+// ──────────────────────────────────────────────
+function renderShareCalHtml(year, month, cyc, attSet, paidSet) {
+    const days     = ['일','월','화','수','목','금','토'];
+    const firstDay = new Date(year, month - 1, 1).getDay();
+    const lastDate = new Date(year, month, 0).getDate();
+    let html = `<div class="mb-3">`;
+    html += `<div class="text-[12px] font-bold text-gray-600 mb-1.5 text-center">${year}년 ${month}월</div>`;
+    html += `<div class="share-cal-grid">`;
+
+    days.forEach((d, i) => {
+        html += `<div class="share-cal-head ${i===0?'text-red-500':i===6?'text-blue-500':'text-gray-600'}">${d}</div>`;
+    });
+    for (let i = 0; i < firstDay; i++) {
+        html += `<div class="share-cal-cell" style="background:#f9fafb"></div>`;
+    }
+    for (let d = 1; d <= lastDate; d++) {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const inCycle = dateStr >= cyc.start && dateStr <= cyc.end;
+        const dow     = new Date(year, month - 1, d).getDay();
+        if (attSet.has(dateStr)) {
+            const isPaid = paidSet.has(dateStr);
+            html += `<div class="share-cal-cell">
+                <div class="att-dot${isPaid ? ' att-dot-paid' : ''}" style="width:26px;height:26px;font-size:11px;">${d}</div>
+            </div>`;
+        } else {
+            const dimStyle = inCycle ? '' : 'opacity:0.25;';
+            const bgStyle  = inCycle ? '' : 'background:#f9fafb;';
+            const color    = dow===0 ? '#f87171' : dow===6 ? '#60a5fa' : '#374151';
+            html += `<div class="share-cal-cell" style="${bgStyle}">
+                <span style="${dimStyle}font-size:12px;font-weight:500;color:${color}">${d}</span>
+            </div>`;
+        }
+    }
+    const lastDow  = new Date(year, month - 1, lastDate).getDay();
+    const trailing = lastDow === 6 ? 0 : 6 - lastDow;
+    for (let i = 0; i < trailing; i++) {
+        html += `<div class="share-cal-cell" style="background:#f9fafb"></div>`;
+    }
+    html += `</div></div>`;
+    return html;
+}
+
+// ──────────────────────────────────────────────
+// v2.2: 공유용 주기 뷰 열기/닫기
+//       Firebase 호출 없음 — 메모리 데이터만 사용
+// ──────────────────────────────────────────────
+function openShareView() {
+    const cyc     = getCurrentCycle(new Date());
+    const cycRec  = records.filter(r => r.date >= cyc.start && r.date <= cyc.end);
+    const cycAmt  = cycRec.reduce((s, r) => s + getDailyRate(r.date), 0);
+    const paidSet = getPaidSet();
+    const attSet  = new Set(cycRec.map(r => r.date));
+
+    const [sy, sm] = cyc.start.split('-').map(Number);
+    const [ey, em] = cyc.end.split('-').map(Number);
+
+    // 주기 걸친 2개월 달력
+    let calHtml = renderShareCalHtml(sy, sm, cyc, attSet, paidSet);
+    if (sy !== ey || sm !== em) {
+        calHtml += renderShareCalHtml(ey, em, cyc, attSet, paidSet);
+    }
+
+    document.getElementById('shareBody').innerHTML = `
+        <!-- 주기 범위 (카드 위) -->
+        <div class="text-center text-[11px] text-gray-400 mb-2">
+            <span class="font-semibold text-gray-600">${cyc.start} ~ ${cyc.end}</span>
+        </div>
+        <!-- 상단 요약 3칸 (세로 컴팩트) -->
+        <div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="bg-indigo-50 rounded-xl px-2 py-2 text-center">
+                <div class="text-[10px] font-bold text-indigo-400 mb-0.5">출근 일수</div>
+                <div class="text-[16px] font-extrabold text-indigo-700 leading-none">${cycRec.length}<span class="text-[11px] font-bold ml-0.5">일</span></div>
+            </div>
+            <div class="bg-purple-50 rounded-xl px-2 py-2 text-center">
+                <div class="text-[10px] font-bold text-purple-400 mb-0.5">지급 예정</div>
+                <div class="text-[13px] font-extrabold text-purple-700 leading-tight">${won(cycAmt)}</div>
+            </div>
+            <div class="bg-emerald-50 rounded-xl px-2 py-2 text-center">
+                <div class="text-[10px] font-bold text-emerald-400 mb-0.5">지급일</div>
+                <div class="text-[13px] font-extrabold text-emerald-700 leading-tight">${parseInt(cyc.end.split('-')[1])}월 ${parseInt(cyc.end.split('-')[2])}일</div>
+            </div>
+        </div>
+        <!-- 2개월 달력 -->
+        ${calHtml}
+        <!-- 범례 -->
+        <div class="flex gap-4 text-[11px] text-gray-400 mb-2 px-1">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block bg-emerald-500"></span>지급완료</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block bg-indigo-600"></span>지급예정</span>
+        </div>`;
+
+    document.getElementById('shareModal').classList.add('on');
+}
+
+function closeShareView() {
+    document.getElementById('shareModal').classList.remove('on');
+}
+
+
+// ──────────────────────────────────────────────
+// 초기화
 // ──────────────────────────────────────────────
 window.onload = async function () {
     const today = new Date().toISOString().slice(0, 10);
     document.getElementById('dateInput').value = today;
-    // 오늘 요일에 맞는 프리셋 자동 적용
     applyPreset(today);
     await loadAll();
     refreshAll();
